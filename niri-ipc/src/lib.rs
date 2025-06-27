@@ -84,6 +84,8 @@ pub enum Request {
     PickWindow,
     /// Request picking a color from the screen.
     PickColor,
+    /// Print current mouse coordinates
+    GetPointerPos,
     /// Perform an action.
     Action(Action),
     /// Change output configuration temporarily.
@@ -156,6 +158,8 @@ pub enum Response {
     PickedWindow(Option<Window>),
     /// Information about the picked color.
     PickedColor(Option<PickedColor>),
+    /// Pointer position
+    PointerPos(Option<Point>),
     /// Output configuration change result.
     OutputConfigChanged(OutputConfigChanged),
     /// Information about the overview.
@@ -177,6 +181,17 @@ pub struct PickedColor {
     /// Color values as red, green, blue, each ranging from 0.0 to 1.0.
     pub rgb: [f64; 3],
 }
+
+/// Pointer position.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
+pub struct Point {
+    /// x coordinate
+    pub x: f64,
+    /// y coordinate
+    pub y: f64,
+}
+impl Eq for Point {}
 
 /// Actions that niri can perform.
 // Variants in this enum should match the spelling of the ones in niri-config. Most, but not all,
@@ -839,6 +854,13 @@ pub enum Action {
         /// Id of the window to unset urgent.
         #[cfg_attr(feature = "clap", arg(long))]
         id: u64,
+    },
+    /// Set pointer position
+    SetPointerPos {
+        /// Desired x coordinate
+        x: f64,
+        /// Desired y coordinate
+        y: f64,
     },
 }
 

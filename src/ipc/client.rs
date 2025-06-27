@@ -22,6 +22,7 @@ pub fn handle_msg(msg: Msg, json: bool) -> anyhow::Result<()> {
         Msg::FocusedOutput => Request::FocusedOutput,
         Msg::PickWindow => Request::PickWindow,
         Msg::PickColor => Request::PickColor,
+        Msg::GetPointerPos => Request::GetPointerPos,
         Msg::Action { action } => Request::Action(action.clone()),
         Msg::Output { output, action } => Request::Output {
             output: output.clone(),
@@ -300,6 +301,23 @@ pub fn handle_msg(msg: Msg, json: bool) -> anyhow::Result<()> {
                 println!("Hex: #{:02x}{:02x}{:02x}", r, g, b);
             } else {
                 println!("No color was picked.");
+            }
+        }
+        Msg::GetPointerPos => {
+            let Response::PointerPos(point) = response else {
+                bail!("unexpected response: expected PointerPos, got {response:?}");
+            };
+
+            if json {
+                let point = serde_json::to_string(&point).context("error formatting response")?;
+                println!("{point}");
+                return Ok(());
+            }
+
+            if let Some(point) = point {
+                println!("Pointer position: {} {}", point.x, point.y);
+            } else {
+                println!("No pointer position.");
             }
         }
         Msg::Action { .. } => {
