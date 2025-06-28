@@ -320,8 +320,13 @@ pub fn handle_msg(msg: Msg, json: bool) -> anyhow::Result<()> {
                     "Pointer position: {} {}",
                     pointer.location.x, pointer.location.y
                 );
+                if pointer.is_grabbed {
+                    println!("Pointer is grabbed.");
+                } else {
+                    println!("Pointer is not grabbed.");
+                }
             } else {
-                println!("No pointer position.");
+                println!("No pointer.");
             }
         }
         Msg::Action { .. } => {
