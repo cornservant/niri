@@ -197,8 +197,6 @@ pub struct Point {
 pub struct Pointer {
     /// Location of the pointer in the global space.
     pub location: Point,
-    /// Whether the pointer is currently being grabbed.
-    pub is_grabbed: bool,
 }
 
 /// Actions that niri can perform.

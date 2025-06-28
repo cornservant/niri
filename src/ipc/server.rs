@@ -383,13 +383,11 @@ async fn process(ctx: &ClientCtx, request: Request) -> Reply {
             ctx.event_loop.insert_idle(move |state| {
                 if let Some(pointer) = state.niri.seat.get_pointer() {
                     let location = pointer.current_location();
-                    let is_grabbed = pointer.is_grabbed();
                     let _ = tx.send_blocking(Some(Pointer {
                         location: Point {
                             x: location.x,
                             y: location.y,
                         },
-                        is_grabbed,
                     }));
                 } else {
                     let _ = tx.send_blocking(None);
