@@ -22,7 +22,7 @@ pub fn handle_msg(msg: Msg, json: bool) -> anyhow::Result<()> {
         Msg::FocusedOutput => Request::FocusedOutput,
         Msg::PickWindow => Request::PickWindow,
         Msg::PickColor => Request::PickColor,
-        Msg::GetPointerPos => Request::GetPointerPos,
+        Msg::Pointer => Request::Pointer,
         Msg::Action { action } => Request::Action(action.clone()),
         Msg::Output { output, action } => Request::Output {
             output: output.clone(),
@@ -303,19 +303,23 @@ pub fn handle_msg(msg: Msg, json: bool) -> anyhow::Result<()> {
                 println!("No color was picked.");
             }
         }
-        Msg::GetPointerPos => {
-            let Response::PointerPos(point) = response else {
+        Msg::Pointer => {
+            let Response::Pointer(pointer) = response else {
                 bail!("unexpected response: expected PointerPos, got {response:?}");
             };
 
             if json {
-                let point = serde_json::to_string(&point).context("error formatting response")?;
-                println!("{point}");
+                let pointer =
+                    serde_json::to_string(&pointer).context("error formatting response")?;
+                println!("{pointer}");
                 return Ok(());
             }
 
-            if let Some(point) = point {
-                println!("Pointer position: {} {}", point.x, point.y);
+            if let Some(pointer) = pointer {
+                println!(
+                    "Pointer position: {} {}",
+                    pointer.location.x, pointer.location.y
+                );
             } else {
                 println!("No pointer position.");
             }

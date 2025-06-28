@@ -17,8 +17,8 @@ use futures_util::{select_biased, AsyncBufReadExt, AsyncWrite, AsyncWriteExt, Fu
 use niri_config::OutputName;
 use niri_ipc::state::{EventStreamState, EventStreamStatePart as _};
 use niri_ipc::{
-    Event, KeyboardLayouts, OutputConfigChanged, Overview, Point, Reply, Request, Response,
-    Workspace,
+    Event, KeyboardLayouts, OutputConfigChanged, Overview, Point, Pointer, Reply, Request,
+    Response, Workspace,
 };
 use smithay::desktop::layer_map_for_output;
 use smithay::input::pointer::{
@@ -378,13 +378,28 @@ async fn process(ctx: &ClientCtx, request: Request) -> Reply {
             let color = result.map_err(|_| String::from("error getting picked color"))?;
             Response::PickedColor(color)
         }
-        Request::GetPointerPos => {
+        Request::Pointer => {
             let (tx, rx) = async_channel::bounded(1);
             ctx.event_loop.insert_idle(move |state| {
-                let pointer = state.niri.seat.get_pointer().unwrap();
-                let _ = tx.send_blocking(pointer.current_location());
+                if let Some(pointer) = state.niri.seat.get_pointer() {
+                    let location = pointer.current_location();
+                    let is_grabbed = pointer.is_grabbed();
+                    let _ = tx.send_blocking(Some(Pointer {
+                        location: Point {
+                            x: location.x,
+                            y: location.y,
+                        },
+                        is_grabbed,
+                    }));
+                } else {
+                    let _ = tx.send_blocking(None);
+                };
             });
-            Response::PointerPos(rx.recv().await.map(|p| Point { x: p.x, y: p.y }).ok())
+            let info = rx
+                .recv()
+                .await
+                .map_err(|_| String::from("error getting pointer information"))?;
+            Response::Pointer(info)
         }
         Request::Action(action) => {
             let (tx, rx) = async_channel::bounded(1);

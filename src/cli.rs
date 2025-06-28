@@ -80,7 +80,7 @@ pub enum Msg {
     /// Pick a color from the screen with the mouse.
     PickColor,
     /// Print current mouse coordinates
-    GetPointerPos,
+    Pointer,
     /// Perform an action.
     Action {
         #[command(subcommand)]

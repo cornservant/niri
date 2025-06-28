@@ -1923,7 +1923,7 @@ pub enum Action {
     #[knuffel(skip)]
     UnsetWindowUrgent(u64),
     #[knuffel(skip)]
-    SetPointerPos(Point),
+    SetPointerLocation(Point),
 }
 
 impl From<niri_ipc::Action> for Action {
@@ -2199,7 +2199,9 @@ impl From<niri_ipc::Action> for Action {
             niri_ipc::Action::ToggleWindowUrgent { id } => Self::ToggleWindowUrgent(id),
             niri_ipc::Action::SetWindowUrgent { id } => Self::SetWindowUrgent(id),
             niri_ipc::Action::UnsetWindowUrgent { id } => Self::UnsetWindowUrgent(id),
-            niri_ipc::Action::SetPointerPos { x, y } => Self::SetPointerPos(Point { x, y }),
+            niri_ipc::Action::SetPointerLocation { x, y } => {
+                Self::SetPointerLocation(Point { x, y })
+            }
         }
     }
 }

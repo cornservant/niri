@@ -80,12 +80,12 @@ pub enum Request {
     FocusedOutput,
     /// Request information about the focused window.
     FocusedWindow,
+    /// Request information about the pointer.
+    Pointer,
     /// Request picking a window and get its information.
     PickWindow,
     /// Request picking a color from the screen.
     PickColor,
-    /// Print current mouse coordinates
-    GetPointerPos,
     /// Perform an action.
     Action(Action),
     /// Change output configuration temporarily.
@@ -158,8 +158,8 @@ pub enum Response {
     PickedWindow(Option<Window>),
     /// Information about the picked color.
     PickedColor(Option<PickedColor>),
-    /// Pointer position
-    PointerPos(Option<Point>),
+    /// Information about the pointer.
+    Pointer(Option<Pointer>),
     /// Output configuration change result.
     OutputConfigChanged(OutputConfigChanged),
     /// Information about the overview.
@@ -182,16 +182,24 @@ pub struct PickedColor {
     pub rgb: [f64; 3],
 }
 
-/// Pointer position.
+/// Location coordinates.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 pub struct Point {
     /// x coordinate
     pub x: f64,
     /// y coordinate
     pub y: f64,
 }
-impl Eq for Point {}
+
+/// Pointer information.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
+pub struct Pointer {
+    /// Location of the pointer in the global space.
+    pub location: Point,
+    /// Whether the pointer is currently being grabbed.
+    pub is_grabbed: bool,
+}
 
 /// Actions that niri can perform.
 // Variants in this enum should match the spelling of the ones in niri-config. Most, but not all,
@@ -855,8 +863,8 @@ pub enum Action {
         #[cfg_attr(feature = "clap", arg(long))]
         id: u64,
     },
-    /// Set pointer position
-    SetPointerPos {
+    /// Set pointer location
+    SetPointerLocation {
         /// Desired x coordinate
         x: f64,
         /// Desired y coordinate
