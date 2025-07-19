@@ -1631,6 +1631,7 @@ pub struct Key {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Trigger {
     Keysym(Keysym),
+    ButtonCode(u32),
     MouseLeft,
     MouseRight,
     MouseMiddle,
@@ -3835,6 +3836,8 @@ impl FromStr for Key {
             Trigger::TouchpadScrollLeft
         } else if key.eq_ignore_ascii_case("TouchpadScrollRight") {
             Trigger::TouchpadScrollRight
+        } else if let Some(code) = parse_button_code(key) {
+            Trigger::ButtonCode(code)
         } else {
             let keysym = keysym_from_name(key, KEYSYM_CASE_INSENSITIVE);
             if keysym.raw() == KEY_NoSymbol {
@@ -3845,6 +3848,13 @@ impl FromStr for Key {
 
         Ok(Key { trigger, modifiers })
     }
+}
+
+fn parse_button_code(key: &str) -> Option<u32> {
+    let key = key.to_lowercase();
+    let suffix = key.strip_prefix("button:")?;
+    let code = suffix.parse::<u32>().ok()?;
+    Some(code)
 }
 
 impl FromStr for ClickMethod {

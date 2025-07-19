@@ -518,6 +518,7 @@ fn key_name(mod_key: ModKey, key: &Key) -> String {
         Trigger::TouchpadScrollUp => String::from("Touchpad Scroll Up"),
         Trigger::TouchpadScrollLeft => String::from("Touchpad Scroll Left"),
         Trigger::TouchpadScrollRight => String::from("Touchpad Scroll Right"),
+        Trigger::ButtonCode(code) => format!("Button:{}", code),
     };
     name.push_str(&pretty);
 

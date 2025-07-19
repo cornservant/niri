@@ -2445,7 +2445,7 @@ impl State {
                     Some(MouseButton::Middle) => Some(Trigger::MouseMiddle),
                     Some(MouseButton::Back) => Some(Trigger::MouseBack),
                     Some(MouseButton::Forward) => Some(Trigger::MouseForward),
-                    _ => None,
+                    _ => Some(Trigger::ButtonCode(button_code)),
                 }
                 .and_then(|trigger| {
                     let config = self.niri.config.borrow();
