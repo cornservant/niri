@@ -188,22 +188,19 @@
               # We don't use the toolchain from nixpkgs
               # because we prefer a nightly toolchain
               # and we *require* a nightly rustfmt
-              (rust-bin.selectLatestNightlyWith (
-                toolchain:
-                toolchain.default.override {
-                  extensions = [
-                    # includes already:
-                    # rustc
-                    # cargo
-                    # rust-std
-                    # rust-docs
-                    # rustfmt-preview
-                    # clippy-preview
-                    "rust-analyzer"
-                    "rust-src"
-                  ];
-                }
-              ))
+              (rust-bin.stable.latest.default.override {
+                extensions = [
+                  # includes already:
+                  # rustc
+                  # cargo
+                  # rust-std
+                  # rust-docs
+                  # rustfmt-preview
+                  # clippy-preview
+                  "rust-analyzer"
+                  "rust-src"
+                ];
+              })
             ];
 
             nativeBuildInputs = [
