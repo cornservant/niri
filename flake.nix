@@ -81,23 +81,22 @@
             installShellFiles
           ];
 
-          buildInputs =
-            [
-              cairo
-              dbus
-              libGL
-              libdisplay-info
-              libinput
-              seatd
-              libxkbcommon
-              libgbm
-              pango
-              wayland
-            ]
-            ++ lib.optional (withDbus || withScreencastSupport || withSystemd) dbus
-            ++ lib.optional withScreencastSupport pipewire
-            # Also includes libudev
-            ++ lib.optional withSystemd systemd;
+          buildInputs = [
+            cairo
+            dbus
+            libGL
+            libdisplay-info
+            libinput
+            seatd
+            libxkbcommon
+            libgbm
+            pango
+            wayland
+          ]
+          ++ lib.optional (withDbus || withScreencastSupport || withSystemd) dbus
+          ++ lib.optional withScreencastSupport pipewire
+          # Also includes libudev
+          ++ lib.optional withSystemd systemd;
 
           buildFeatures =
             lib.optional withDbus "dbus"
@@ -121,21 +120,20 @@
             "--skip=::egl"
           ];
 
-          postInstall =
-            ''
-              installShellCompletion --cmd niri \
-                --bash <($out/bin/niri completions bash) \
-                --fish <($out/bin/niri completions fish) \
-                --nushell <($out/bin/niri completions nushell) \
-                --zsh <($out/bin/niri completions zsh)
+          postInstall = ''
+            installShellCompletion --cmd niri \
+              --bash <($out/bin/niri completions bash) \
+              --fish <($out/bin/niri completions fish) \
+              --nushell <($out/bin/niri completions nushell) \
+              --zsh <($out/bin/niri completions zsh)
 
-              install -Dm644 resources/niri.desktop -t $out/share/wayland-sessions
-              install -Dm644 resources/niri-portals.conf -t $out/share/xdg-desktop-portal
-            ''
-            + lib.optionalString withSystemd ''
-              install -Dm755 resources/niri-session $out/bin/niri-session
-              install -Dm644 resources/niri{.service,-shutdown.target} -t $out/share/systemd/user
-            '';
+            install -Dm644 resources/niri.desktop -t $out/share/wayland-sessions
+            install -Dm644 resources/niri-portals.conf -t $out/share/xdg-desktop-portal
+          ''
+          + lib.optionalString withSystemd ''
+            install -Dm755 resources/niri-session $out/bin/niri-session
+            install -Dm644 resources/niri{.service,-shutdown.target} -t $out/share/systemd/user
+          '';
 
           env = {
             # Force linking with libEGL and libwayland-client
@@ -189,22 +187,19 @@
               # We don't use the toolchain from nixpkgs
               # because we prefer a nightly toolchain
               # and we *require* a nightly rustfmt
-              (rust-bin.selectLatestNightlyWith (
-                toolchain:
-                toolchain.default.override {
-                  extensions = [
-                    # includes already:
-                    # rustc
-                    # cargo
-                    # rust-std
-                    # rust-docs
-                    # rustfmt-preview
-                    # clippy-preview
-                    "rust-analyzer"
-                    "rust-src"
-                  ];
-                }
-              ))
+              (rust-bin.stable.latest.default.override {
+                extensions = [
+                  # includes already:
+                  # rustc
+                  # cargo
+                  # rust-std
+                  # rust-docs
+                  # rustfmt-preview
+                  # clippy-preview
+                  "rust-analyzer"
+                  "rust-src"
+                ];
+              })
               pkgs.cargo-insta
             ];
 
