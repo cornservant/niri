@@ -566,7 +566,7 @@ struct SurfaceFrameThrottlingState {
     last_sent_at: RefCell<Option<(Output, u32)>>,
 }
 
-struct ForceRenderState {
+pub struct ForceRenderState {
     // To calculate time diff between current frame_callback_time and last render time.
     last_render_time: Duration,
     // To check if a force render frame is waiting to be rendered.
@@ -4835,7 +4835,8 @@ impl Niri {
                             let time_diff: Duration = frame_callback_time
                                 .saturating_sub(force_render_state.last_render_time);
 
-                            // Calculate next frame callback time and push needed data to delayed_surfaces.
+                            // Calculate next frame callback time and push needed data to
+                            // delayed_surfaces.
                             let delay_time = interval.saturating_sub(time_diff);
                             let mut delayed = delayed_surfaces.borrow_mut();
                             delayed
