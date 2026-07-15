@@ -21,13 +21,13 @@ force-push-all:
     ssh-add /home/long/.ssh/id_ed25519
     let bookmarks = [
         "main",
-        "pr/dont-expel-window-from-column-when-fullscreening",
-        "pr/workspace-focus-and-move-on-specified-output",
+        # "pr/dont-expel-window-from-column-when-fullscreening", # NOTE: no willy-nilly ci/cd
+        # "pr/workspace-focus-and-move-on-specified-output", # NOTE: no willy-nilly ci/cd
         "pr/ipc-pointer-v2",
         "pr/match-output",
-        "pr/dont-throttle-window-cast-target",
         "pr/window-rule-no-throttle",
         "pr/prioritize-last-output-and-workspace-config",
+        "pr/no-focus-move-p2",
     ]
     $bookmarks | each {|branch|
         print $"(ansi blue_bold)jj git push --bookmark ($branch) --remote origin(ansi reset)"
@@ -52,7 +52,7 @@ make-new-main-branch:
         "extern/svg-cursor",
         "extern/run-programs-directly",
         "extern/float-above-fullscreen",
-        "extern/is-fullscreen-matcher",
+        "pr/no-focus-move-p2",
     ]
     let desc = ["feat: merge feature branches", "", ...$bookmarks] | str join "\n"
     jj new ...($bookmarks | each {["-r", $in]} | flatten)
