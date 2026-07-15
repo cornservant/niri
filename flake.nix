@@ -2,7 +2,7 @@
 {
   description = "Niri: A scrollable-tiling Wayland compositor.";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/04906337b6d53e8bb0eaf0470ae9f070a4d4eb55";
 
   outputs =
     {
