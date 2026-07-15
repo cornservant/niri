@@ -185,6 +185,7 @@
                 clippy
                 cargo-insta
                 rust-analyzer
+                mold
                 ;
               inherit rustfmt';
             };
