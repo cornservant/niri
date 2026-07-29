@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use niri_config::utils::MergeWith as _;
-use niri_config::{CenterFocusedColumn, PresetSize, Struts};
+use niri_config::{CenterFocusedColumn, MaximizedWindowPlacement, PresetSize, Struts};
 use niri_ipc::{ColumnDisplay, SizeChange, WindowLayout};
 use ordered_float::NotNan;
 use smithay::backend::renderer::gles::GlesRenderer;
@@ -2218,7 +2218,11 @@ impl<W: LayoutElement> ScrollingSpace<W> {
         col.update_tile_sizes(true);
 
         // Disable fullscreen if needed.
-        if col.display_mode != ColumnDisplay::Tabbed && col.tiles.len() > 1 {
+        if self.options.layout.maximized_window_placement
+            == MaximizedWindowPlacement::ExpelFromColumn
+            && col.display_mode != ColumnDisplay::Tabbed
+            && col.tiles.len() > 1
+        {
             let window = col.tiles[col.active_tile_idx].window().id().clone();
             self.set_fullscreen(&window, false);
             self.set_maximized(&window, false);
@@ -2893,11 +2897,14 @@ impl<W: LayoutElement> ScrollingSpace<W> {
         }
 
         let mut col = &mut self.columns[col_idx];
-        let is_tabbed = col.display_mode == ColumnDisplay::Tabbed;
 
         cancel_resize_for_column(&mut self.interactive_resize, col);
 
-        if is_fullscreen && (col.tiles.len() > 1 && !is_tabbed) {
+        if self.options.layout.maximized_window_placement
+            == MaximizedWindowPlacement::ExpelFromColumn
+            && is_fullscreen
+            && (col.tiles.len() > 1 && !col.display_mode.is_tabbed())
+        {
             // This wasn't the only window in its column; extract it into a separate column.
             self.consume_or_expel_window_right(Some(window));
             col_idx += 1;
@@ -2928,7 +2935,11 @@ impl<W: LayoutElement> ScrollingSpace<W> {
 
         cancel_resize_for_column(&mut self.interactive_resize, col);
 
-        if maximize && (col.tiles.len() > 1 && !is_tabbed) {
+        if self.options.layout.maximized_window_placement
+            == MaximizedWindowPlacement::ExpelFromColumn
+            && maximize
+            && (col.tiles.len() > 1 && !is_tabbed)
+        {
             // This wasn't the only window in its column; extract it into a separate column.
             self.consume_or_expel_window_right(Some(window));
             col_idx += 1;
@@ -5233,10 +5244,6 @@ impl<W: LayoutElement> Column<W> {
             return;
         }
 
-        if is_fullscreen {
-            assert!(self.tiles.len() == 1 || self.display_mode == ColumnDisplay::Tabbed);
-        }
-
         self.is_pending_fullscreen = is_fullscreen;
         self.update_tile_sizes(true);
     }
@@ -5244,10 +5251,6 @@ impl<W: LayoutElement> Column<W> {
     fn set_maximized(&mut self, maximize: bool) {
         if self.is_pending_maximized == maximize {
             return;
-        }
-
-        if maximize {
-            assert!(self.tiles.len() == 1 || self.display_mode == ColumnDisplay::Tabbed);
         }
 
         self.is_pending_maximized = maximize;
@@ -5339,14 +5342,15 @@ impl<W: LayoutElement> Column<W> {
     // borrowing. Note that this method's return value does not borrow the entire &Self!
     fn tile_offsets_iter(
         &self,
-        data: impl Iterator<Item = TileData>,
+        data: impl Iterator<Item = TileData> + Clone,
     ) -> impl Iterator<Item = Point<f64, Logical>> {
         // FIXME: this should take into account always-center-single-column, which means that
         // Column should somehow know when it is being centered due to being the single column on
         // the workspace or some other reason.
         let center = self.options.layout.center_focused_column == CenterFocusedColumn::Always;
         let gaps = self.options.layout.gaps;
-        let tabbed = self.display_mode == ColumnDisplay::Tabbed;
+        let stacked = self.display_mode == ColumnDisplay::Normal;
+        let is_maximized = self.pending_sizing_mode().is_fullscreen_or_maximized();
 
         // Does not include extra size from the tab indicator.
         let tiles_width = self
@@ -5367,7 +5371,7 @@ impl<W: LayoutElement> Column<W> {
         };
         let data = data.chain(iter::once(dummy));
 
-        data.map(move |data| {
+        let offsets = data.map(move |data| {
             let mut pos = origin;
 
             if center {
@@ -5376,11 +5380,21 @@ impl<W: LayoutElement> Column<W> {
                 pos.x += tiles_width - data.size.w;
             }
 
-            if !tabbed {
+            if stacked {
                 origin.y += data.size.h + gaps;
             }
 
             pos
+        });
+
+        let active_window_offset = offsets.clone().nth(self.active_tile_idx).unwrap();
+
+        offsets.map(move |offset| {
+            if stacked && is_maximized {
+                origin + offset - active_window_offset
+            } else {
+                offset
+            }
         })
     }
 
@@ -5394,7 +5408,7 @@ impl<W: LayoutElement> Column<W> {
 
     fn tile_offsets_in_render_order(
         &self,
-        data: impl Iterator<Item = TileData>,
+        data: impl Iterator<Item = TileData> + Clone,
     ) -> impl Iterator<Item = Point<f64, Logical>> {
         let active_idx = self.active_tile_idx;
         let active_pos = self.tile_offset(active_idx);
@@ -5425,7 +5439,7 @@ impl<W: LayoutElement> Column<W> {
 
         let active = active.iter().map(|tile| (tile, true));
 
-        let rest_visible = self.display_mode != ColumnDisplay::Tabbed;
+        let rest_visible = self.display_mode.is_normal() && self.pending_sizing_mode().is_normal();
         let rest = first.iter().chain(rest);
         let rest = rest.map(move |tile| (tile, rest_visible));
 
@@ -5503,10 +5517,6 @@ impl<W: LayoutElement> Column<W> {
         assert!(self.active_tile_idx < self.tiles.len());
         assert_eq!(self.tiles.len(), self.data.len());
 
-        if !self.pending_sizing_mode().is_normal() {
-            assert!(self.tiles.len() == 1 || self.display_mode == ColumnDisplay::Tabbed);
-        }
-
         if let Some(idx) = self.preset_width_idx {
             assert!(idx < self.options.layout.preset_column_widths.len());
         }
@@ -5582,7 +5592,8 @@ impl<W: LayoutElement> Column<W> {
             total_min_height += min_tile_height;
         }
 
-        if !is_tabbed
+        if self.display_mode.is_normal()
+            && self.pending_sizing_mode().is_normal()
             && tile_count > 1
             && self.scale.round() == self.scale
             && working_size.h.round() == working_size.h
