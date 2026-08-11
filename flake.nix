@@ -2,7 +2,7 @@
 {
   description = "Niri: A scrollable-tiling Wayland compositor.";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/02e08985a27c65ffd33d434eeb2e660a2e4dc84d";
 
   outputs =
     {
@@ -17,7 +17,7 @@
           cairo,
           dbus,
           libGL,
-          libdisplay-info_0_3,
+          libdisplay-info,
           libinput,
           seatd,
           libxkbcommon,
@@ -76,7 +76,7 @@
             cairo
             dbus
             libGL
-            libdisplay-info_0_3
+            libdisplay-info
             libinput
             seatd
             libxkbcommon
