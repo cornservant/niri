@@ -72,11 +72,10 @@ use crate::utils::{get_monotonic_time, is_laptop_panel, logical_output, PanelOri
 
 // specific 10-bit formats for multigpu setup,
 // i.e. copying from rendering Nvidia dGPU to target iGPU.
-const SUPPORTED_COLOR_FORMATS: [Fourcc; 6] = [
-    Fourcc::Xbgr2101010,
+//
+// Smithay should fall back to Xrgb/Xbgr automatically if needed.
+const SUPPORTED_COLOR_FORMATS: [Fourcc; 3] = [
     Fourcc::Abgr2101010,
-    Fourcc::Xrgb8888,
-    Fourcc::Xbgr8888,
     Fourcc::Argb8888,
     Fourcc::Abgr8888,
 ];
