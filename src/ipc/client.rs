@@ -36,6 +36,7 @@ pub fn handle_msg(mut msg: Msg, json: bool) -> anyhow::Result<()> {
         Msg::FocusedOutput => Request::FocusedOutput,
         Msg::PickWindow => Request::PickWindow,
         Msg::PickColor => Request::PickColor,
+        Msg::Pointer => Request::Pointer,
         Msg::Action { action } => Request::Action(action.clone()),
         Msg::Output { output, action } => Request::Output {
             output: output.clone(),
@@ -316,6 +317,9 @@ pub fn handle_msg(mut msg: Msg, json: bool) -> anyhow::Result<()> {
             } else {
                 println!("No color was picked.");
             }
+        }
+        Msg::Pointer => {
+            unimplemented!();
         }
         Msg::Action { .. } => {
             let Response::Handled = response else {

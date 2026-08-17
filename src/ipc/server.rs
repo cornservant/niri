@@ -378,6 +378,9 @@ async fn process(ctx: &ClientCtx, request: Request) -> Reply {
             let color = result.map_err(|_| String::from("error getting picked color"))?;
             Response::PickedColor(color)
         }
+        Request::Pointer => {
+            unimplemented!();
+        }
         Request::Action(action) => {
             validate_action(&action)?;
 
