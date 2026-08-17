@@ -17,8 +17,8 @@ use futures_util::{select_biased, AsyncBufReadExt, AsyncWrite, AsyncWriteExt, Fu
 use niri_config::OutputName;
 use niri_ipc::state::{EventStreamState, EventStreamStatePart as _};
 use niri_ipc::{
-    Action, Event, KeyboardLayouts, OutputConfigChanged, Overview, Reply, Request, Response,
-    Timestamp, WindowLayout, Workspace,
+    Action, Event, KeyboardLayouts, OutputConfigChanged, Overview, Point, Pointer, Reply, Request,
+    Response, Timestamp, WindowLayout, Workspace,
 };
 use smithay::desktop::layer_map_for_output;
 use smithay::input::pointer::{
@@ -379,7 +379,25 @@ async fn process(ctx: &ClientCtx, request: Request) -> Reply {
             Response::PickedColor(color)
         }
         Request::Pointer => {
-            unimplemented!();
+            let (tx, rx) = async_channel::bounded(1);
+            ctx.event_loop.insert_idle(move |state| {
+                if let Some(pointer) = state.niri.seat.get_pointer() {
+                    let location = pointer.current_location();
+                    let _ = tx.send_blocking(Some(Pointer {
+                        location: Point {
+                            x: location.x,
+                            y: location.y,
+                        },
+                    }));
+                } else {
+                    let _ = tx.send_blocking(None);
+                };
+            });
+            let info = rx
+                .recv()
+                .await
+                .map_err(|_| String::from("error getting pointer information"))?;
+            Response::Pointer(info)
         }
         Request::Action(action) => {
             validate_action(&action)?;
