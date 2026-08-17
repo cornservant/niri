@@ -319,7 +319,25 @@ pub fn handle_msg(mut msg: Msg, json: bool) -> anyhow::Result<()> {
             }
         }
         Msg::Pointer => {
-            unimplemented!();
+            let Response::Pointer(pointer) = response else {
+                bail!("unexpected response: expected PointerPos, got {response:?}");
+            };
+
+            if json {
+                let pointer =
+                    serde_json::to_string(&pointer).context("error formatting response")?;
+                println!("{pointer}");
+                return Ok(());
+            }
+
+            if let Some(pointer) = pointer {
+                println!(
+                    "Pointer location: {} {}",
+                    pointer.location.x, pointer.location.y
+                );
+            } else {
+                println!("No pointer.");
+            }
         }
         Msg::Action { .. } => {
             let Response::Handled = response else {
