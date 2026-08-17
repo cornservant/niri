@@ -6496,6 +6496,39 @@ impl Niri {
             self.queue_redraw(&output);
         }
     }
+
+    pub(crate) fn clamp_pointer_location_to_existing_output(
+        &self,
+        new_pos: Point<f64, Logical>,
+    ) -> Point<f64, Logical> {
+        let pointer = &self.seat.get_pointer().unwrap();
+        let pos = pointer.current_location();
+
+        if self.global_space.output_under(new_pos).next().is_none() {
+            // We ended up outside the outputs and need to clip the movement.
+            if let Some(output) = self.global_space.output_under(pos).next() {
+                // The pointer was previously on some output. Clip the movement against its
+                // boundaries.
+                let geom = self.global_space.output_geometry(output).unwrap();
+                return Point::new(
+                    new_pos
+                        .x
+                        .clamp(geom.loc.x as f64, (geom.loc.x + geom.size.w - 1) as f64),
+                    new_pos
+                        .y
+                        .clamp(geom.loc.y as f64, (geom.loc.y + geom.size.h - 1) as f64),
+                );
+            } else {
+                // The pointer was not on any output in the first place. Find one for it.
+                // Let's do the simple thing and just put it on the first output.
+                let output = self.global_space.outputs().next().unwrap();
+                let geom = self.global_space.output_geometry(output).unwrap();
+                return center(geom).to_f64();
+            }
+        }
+
+        new_pos
+    }
 }
 
 pub struct NewClient {
