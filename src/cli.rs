@@ -79,6 +79,8 @@ pub enum Msg {
     PickWindow,
     /// Pick a color from the screen with the mouse.
     PickColor,
+    /// Request information about the pointer.
+    Pointer,
     /// Perform an action.
     Action {
         #[command(subcommand)]
