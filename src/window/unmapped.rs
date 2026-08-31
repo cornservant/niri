@@ -1,4 +1,4 @@
-use niri_config::PresetSize;
+use niri_config::{OutputName, PresetSize};
 use smithay::desktop::Window;
 use smithay::output::Output;
 use smithay::wayland::shell::xdg::ToplevelSurface;
@@ -96,5 +96,15 @@ impl Unmapped {
 
     pub fn toplevel(&self) -> &ToplevelSurface {
         self.window.toplevel().expect("no X11 support")
+    }
+
+    pub fn output_name(&self) -> Option<&OutputName> {
+        match &self.state {
+            InitialConfigureState::Configured {
+                output: Some(output),
+                ..
+            } => OutputName::from_output(output),
+            _ => None,
+        }
     }
 }
