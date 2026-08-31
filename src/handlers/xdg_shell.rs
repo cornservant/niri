@@ -1,7 +1,7 @@
 use std::cell::Cell;
 
 use calloop::Interest;
-use niri_config::PresetSize;
+use niri_config::{OutputName, PresetSize};
 use smithay::desktop::{
     find_popup_root_surface, get_popup_toplevel_coords, layer_map_for_output, utils, LayerSurface,
     PopupKeyboardGrab, PopupKind, PopupManager, PopupPointerGrab, PopupUngrabStrategy, Window,
@@ -1090,6 +1090,7 @@ impl State {
             &config.window_rules,
             WindowRef::Unmapped(unmapped),
             self.niri.is_at_startup,
+            unmapped.output_name(),
         );
 
         let Unmapped { window, state, .. } = unmapped;
@@ -1426,6 +1427,7 @@ impl State {
                 window_rules,
                 WindowRef::Unmapped(unmapped),
                 self.niri.is_at_startup,
+                unmapped.output_name(),
             );
             if let InitialConfigureState::Configured { rules, .. } = &mut unmapped.state {
                 *rules = new_rules;
@@ -1435,7 +1437,8 @@ impl State {
             .layout
             .find_window_and_output_mut(toplevel.wl_surface())
         {
-            if mapped.recompute_window_rules(window_rules, self.niri.is_at_startup) {
+            let output_name = output.and_then(OutputName::from_output);
+            if mapped.recompute_window_rules(window_rules, self.niri.is_at_startup, output_name) {
                 drop(config);
                 let output = output.cloned();
                 let window = mapped.window.clone();

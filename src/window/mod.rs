@@ -3,8 +3,8 @@ use std::cmp::{max, min};
 use niri_config::utils::MergeWith as _;
 use niri_config::window_rule::{Match, OnXdgActivate, WindowRule};
 use niri_config::{
-    BackgroundEffect, BlockOutFrom, BorderRule, CornerRadius, FloatingPosition, PresetSize,
-    ResolvedPopupsRules, ShadowRule, TabIndicatorRule,
+    BackgroundEffect, BlockOutFrom, BorderRule, CornerRadius, FloatingPosition, OutputName,
+    PresetSize, ResolvedPopupsRules, ShadowRule, TabIndicatorRule,
 };
 use niri_ipc::ColumnDisplay;
 use smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel;
@@ -183,7 +183,12 @@ impl<'a> WindowRef<'a> {
 }
 
 impl ResolvedWindowRules {
-    pub fn compute(rules: &[WindowRule], window: WindowRef, is_at_startup: bool) -> Self {
+    pub fn compute(
+        rules: &[WindowRule],
+        window: WindowRef,
+        is_at_startup: bool,
+        output_name: Option<&OutputName>,
+    ) -> Self {
         let _span = tracy_client::span!("ResolvedWindowRules::compute");
 
         let mut resolved = ResolvedWindowRules::default();
@@ -205,7 +210,7 @@ impl ResolvedWindowRules {
                         }
                     }
 
-                    window_matches(window, role, m)
+                    window_matches(window, role, m, output_name)
                 };
 
                 if !(rule.matches.is_empty() || rule.matches.iter().any(matches)) {
@@ -390,7 +395,12 @@ impl ResolvedWindowRules {
     }
 }
 
-fn window_matches(window: WindowRef, role: &XdgToplevelSurfaceRoleAttributes, m: &Match) -> bool {
+fn window_matches(
+    window: WindowRef,
+    role: &XdgToplevelSurfaceRoleAttributes,
+    m: &Match,
+    output_name: Option<&OutputName>,
+) -> bool {
     // Must be ensured by the caller.
     let server_pending = role.server_pending.as_ref().unwrap();
 
@@ -430,6 +440,15 @@ fn window_matches(window: WindowRef, role: &XdgToplevelSurfaceRoleAttributes, m:
             return false;
         };
         if !title_re.0.is_match(title) {
+            return false;
+        }
+    }
+
+    if let Some(output_re) = &m.on_output {
+        let Some(output_name) = output_name else {
+            return false;
+        };
+        if !output_name.matches_re(output_re) {
             return false;
         }
     }
