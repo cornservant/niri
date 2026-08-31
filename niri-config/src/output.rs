@@ -6,6 +6,7 @@ use knuffel::errors::DecodeError;
 use knuffel::traits::ErrorSpan;
 use knuffel::Decode;
 use niri_ipc::{ConfiguredMode, HSyncPolarity, Transform, VSyncPolarity};
+use smithay::output;
 
 use crate::gestures::HotCorners;
 use crate::utils::RegexEq;
@@ -165,6 +166,10 @@ impl OutputName {
             model: (output.model != "Unknown").then(|| output.model.clone()),
             serial: output.serial.clone(),
         }
+    }
+
+    pub fn from_output(output: &output::Output) -> Option<&OutputName> {
+        output.user_data().get::<OutputName>()
     }
 
     /// Returns an output description matching what Smithay's `Output::new()` does.
