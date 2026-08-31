@@ -8,6 +8,7 @@ use knuffel::Decode;
 use niri_ipc::{ConfiguredMode, HSyncPolarity, Transform, VSyncPolarity};
 
 use crate::gestures::HotCorners;
+use crate::utils::RegexEq;
 use crate::{Color, FloatOrInt, LayoutPart};
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -240,6 +241,29 @@ impl OutputName {
         }
 
         true
+    }
+
+    pub fn matches_re(&self, target: &RegexEq) -> bool {
+        // Match by connector.
+        if target.0.is_match(&self.connector) {
+            return true;
+        }
+
+        // If no other fields are available, don't try to match by them.
+        //
+        // This is used by niri msg output.
+        if self.make.is_some() || self.model.is_some() || self.serial.is_some() {
+            // Match by "make model serial" with Unknown if something is missing.
+            let make = self.make.as_deref().unwrap_or("Unknown");
+            let model = self.model.as_deref().unwrap_or("Unknown");
+            let serial = self.serial.as_deref().unwrap_or("Unknown");
+
+            if target.0.is_match(&format!("{make} {model} {serial}")) {
+                return true;
+            };
+        }
+
+        false
     }
 
     // Similar in spirit to Ord, but I don't want to derive Eq to avoid mistakes (you should use
