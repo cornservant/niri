@@ -337,6 +337,20 @@ window-rule {
     open-on-output "HDMI-A-1"
 }
 ```
+#### on-output
+
+<sup>Since: next release</sup>
+
+These are regular expressions that should match anywhere in the output which contains the window.
+You can read about the supported regular expression syntax [here](https://docs.rs/regex/latest/regex/#syntax).
+
+```kdl
+// Make the default column width depend on the monitor on which a window opens
+window-rule {
+    match on-output="DP-3"
+    default-column-width { proportion 0.3333; }
+}
+```
 
 ### Window Opening Properties
 
