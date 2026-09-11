@@ -1,0 +1,168 @@
+input {
+    focus-follows-mouse
+}
+
+output "DP-3" {
+    mode "2560x1440@165"
+    position x=0 y=0
+    focus-at-startup
+}
+
+output "HDMI-A-1" {
+    mode "1920x1080@60"
+    position x=2560 y=960
+}
+
+layout {
+    // FIXME: invariants may be broken if this option is changed while there's fullscreen action going on
+    // specifically, if we go from `keep-in-column` with maximized in-place window to `expel-from-column`
+    // which now has to deal with maximized windows in a column.
+    // To restore the invariant (the invariant being: if a window is maximized/fullscreened, then it is tabbed or not part of a column with other windows.)
+    preset-column-widths {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+    }
+}
+
+binds {
+    Mod+Shift+Slash { show-hotkey-overlay; }
+
+    Mod+Return repeat=false hotkey-overlay-title="Open a Terminal" { spawn "alacritty"; }
+    Mod+B repeat=false hotkey-overlay-title="Open Firefox" { spawn-sh "firefox --profile ~/.mozilla/firefox/itrauro9.Niri Test"; }
+    Mod+E hotkey-overlay-title="File Manager"  { spawn "nautilus"; }
+
+    XF86AudioRaiseVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "0.1+"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "0.1-"; }
+    XF86AudioMute        allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
+    XF86AudioMicMute     allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
+
+    Mod+G repeat=false { toggle-overview; }
+
+    Mod+Shift+C { close-window; }
+
+    Mod+Left  { focus-column-left; }
+    Mod+H     { focus-column-left; }
+    Mod+Down  { focus-window-down; }
+    Mod+J     { focus-window-down; }
+    // Mod+J     { focus-window-or-workspace-down; }
+    Mod+Up    { focus-window-up; }
+    Mod+K     { focus-window-up; }
+    // Mod+K     { focus-window-or-workspace-up; }
+    Mod+Right { focus-column-right; }
+    Mod+L     { focus-column-right; }
+
+    Mod+Shift+Left  { move-column-left; }
+    Mod+Shift+H     { move-column-left; }
+    Mod+Shift+Down   { move-window-down; }
+    Mod+Shift+J     { move-window-down; }
+    // Mod+Shift+J     { move-window-down-or-to-workspace-down; }
+    Mod+Shift+Up     { move-window-up; }
+    Mod+Shift+K     { move-window-up; }
+    // Mod+Shift+K     { move-window-up-or-to-workspace-up; }
+    Mod+Shift+Right { move-column-right; }
+    Mod+Shift+L     { move-column-right; }
+
+    Mod+Home { focus-column-first; }
+    Mod+End  { focus-column-last; }
+    Mod+Ctrl+Home { move-column-to-first; }
+    Mod+Ctrl+End  { move-column-to-last; }
+
+    Mod+BracketLeft  { focus-monitor-left; }
+    Mod+BracketRight { focus-monitor-right; }
+
+    Mod+Shift+BracketLeft { move-column-to-monitor-left; }
+    Mod+Shift+BracketRight { move-column-to-monitor-right; }
+
+    Mod+N       { focus-workspace-down; }
+    Mod+P       { focus-workspace-up; }
+    Mod+Shift+N { move-column-to-workspace-down; }
+    Mod+Shift+P { move-column-to-workspace-up; }
+
+    Mod+Ctrl+N { move-workspace-down; }
+    Mod+Ctrl+P { move-workspace-up; }
+
+    Mod+WheelScrollDown      cooldown-ms=150 { focus-workspace-down; }
+    Mod+WheelScrollUp        cooldown-ms=150 { focus-workspace-up; }
+
+    Mod+WheelScrollRight      { focus-column-right; }
+    Mod+WheelScrollLeft       { focus-column-left; }
+    Mod+Shift+WheelScrollRight { move-column-right; }
+    Mod+Shift+WheelScrollLeft  { move-column-left; }
+
+    // Usually scrolling up and down with Shift in applications results in
+    // horizontal scrolling; these binds replicate that.
+    Mod+Ctrl+WheelScrollDown      { focus-column-right; }
+    Mod+Ctrl+WheelScrollUp        { focus-column-left; }
+    Mod+Ctrl+Shift+WheelScrollDown { move-column-right; }
+    Mod+Ctrl+Shift+WheelScrollUp   { move-column-left; }
+
+    Mod+Comma  { consume-window-into-column; }
+    Mod+Period { expel-window-from-column; }
+
+    Mod+R { switch-preset-column-width; }
+    Mod+Shift+R { switch-preset-window-height; }
+    Mod+Ctrl+R { reset-window-height; }
+    Mod+M { maximize-column; }
+    Mod+Ctrl+M { expand-column-to-available-width; }
+    Mod+F { maximize-window-to-edges; }
+    Mod+Shift+F { fullscreen-window; }
+
+
+    Mod+C { center-column; }
+    Mod+Ctrl+C { center-visible-columns; }
+
+    Mod+Minus { set-column-width "-10%"; }
+    Mod+Equal { set-column-width "+10%"; }
+
+    Mod+Shift+Minus { set-window-height "-10%"; }
+    Mod+Shift+Equal { set-window-height "+10%"; }
+
+    Mod+V       { toggle-window-floating; }
+    Mod+Shift+V { switch-focus-between-floating-and-tiling; }
+
+    Mod+W { toggle-column-tabbed-display; }
+
+    Print { screenshot; }
+    Ctrl+Print { screenshot-screen; }
+    Alt+Print { screenshot-window; }
+
+    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
+
+    Mod+Shift+Q { quit; }
+    Ctrl+Alt+Delete { quit; }
+
+    Mod+0 { spawn "fcitx5-remote" "-g" "ENGLISH"; }
+    Mod+9 { spawn "fcitx5-remote" "-g" "GERMAN"; }
+    Mod+8 { spawn "fcitx5-remote" "-g" "JAPANESE"; }
+
+    Mod+Pause { power-off-monitors; }
+}
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+gestures {
+    hot-corners {
+        off
+    }
+}
+
+overview {
+    zoom 0.3
+    backdrop-color "#1c1917"
+}
+
+blur {
+    passes 3
+    offset 3
+    noise 0.1
+    saturation 1.5
+}
+
+spawn-sh-at-startup "waybar"
+
+animations {
+    slowdown 10.5
+}
