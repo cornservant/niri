@@ -37,6 +37,8 @@ impl ShmMapping {
     }
 
     pub(super) fn copy_frame(&self, bytes: &[u8]) {
+        let _span = tracy_client::span!();
+
         // SAFETY: The constructor's contract keeps the memory valid and ensures
         // exclusive access during this write. No references into the mapping escape.
         let buffer = unsafe { slice::from_raw_parts_mut(self.address.cast::<u8>(), self.len) };
@@ -44,6 +46,8 @@ impl ShmMapping {
     }
 
     pub(super) fn clear(&self) {
+        let _span = tracy_client::span!();
+
         // SAFETY: As in copy_frame, the mapping is valid and exclusively accessed.
         let buffer = unsafe { slice::from_raw_parts_mut(self.address.cast::<u8>(), self.len) };
         buffer.fill(0);
