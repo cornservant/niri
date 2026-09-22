@@ -1765,7 +1765,7 @@ impl State {
         }
 
         // Create new named workspaces.
-        for ws_config in &config.workspaces {
+        for ws_config in config.workspaces.iter().rev() {
             self.niri.layout.ensure_named_workspace(ws_config);
         }
 
