@@ -2020,7 +2020,7 @@ impl State {
         for output in self.niri.global_space.outputs() {
             let name = output.user_data().get::<OutputName>().unwrap();
             let full_config = self.niri.config.borrow_mut();
-            let config = full_config.outputs.find(name);
+            let config = full_config.outputs.find_last(name);
 
             let scale = config
                 .and_then(|c| c.scale)
