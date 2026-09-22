@@ -151,6 +151,10 @@ impl Outputs {
         self.0.iter().find(|o| name.matches(&o.name))
     }
 
+    pub fn find_rev(&self, name: &OutputName) -> Option<&Output> {
+        self.0.iter().rev().find(|o| name.matches(&o.name))
+    }
+
     pub fn find_mut(&mut self, name: &OutputName) -> Option<&mut Output> {
         self.0.iter_mut().find(|o| name.matches(&o.name))
     }
