@@ -127,10 +127,6 @@ impl Winit {
                         let mode = &mut output.modes[0];
                         mode.width = size.w.clamp(0, u16::MAX as i32) as u16;
                         mode.height = size.h.clamp(0, u16::MAX as i32) as u16;
-                        if let Some(logical) = output.logical.as_mut() {
-                            logical.width = size.w as u32;
-                            logical.height = size.h as u32;
-                        }
                         state.niri.ipc_outputs_changed = true;
                     }
 
