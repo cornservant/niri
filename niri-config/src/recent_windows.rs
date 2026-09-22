@@ -58,7 +58,7 @@ impl MergeWith<RecentWindowsPart> for RecentWindows {
         if let Some(part) = &part.binds {
             // Remove existing binds matching any new bind.
             self.binds
-                .retain(|bind| !part.0.iter().any(|new| new.key == bind.key));
+                .retain(|bind| !part.0.iter().any(|new| new.key.conflicts_with(&bind.key)));
             // Add all new binds.
             self.binds.extend(part.0.iter().cloned().map(Bind::from));
         }
@@ -269,7 +269,9 @@ where
                     ctx.emit_error(e);
                 }
                 Ok(bind) => {
-                    let conflict = binds.iter().position(|prev| prev.key == bind.key);
+                    let conflict = binds
+                        .iter()
+                        .position(|prev| prev.key.conflicts_with(&bind.key));
                     if let Some(idx) = conflict {
                         // Even though it's technically incorrect, we use
                         // `DecodeError::Missing` here because it labels the bind with
@@ -282,7 +284,11 @@ where
                         ctx.emit_error(DecodeError::unexpected(
                             &child.node_name,
                             "keybind",
-                            "duplicate keybind later defined here",
+                            if binds[idx].key == bind.key {
+                                "duplicate keybind later defined here"
+                            } else {
+                                "conflicting keybind later defined here"
+                            },
                         ));
                     } else {
                         nodes.push(child);
@@ -325,8 +331,11 @@ where
             .parse::<Key>()
             .map_err(|e| DecodeError::conversion(&node.node_name, e.wrap_err("invalid keybind")))?;
 
+        let mut modifiers = key.modifiers;
+        modifiers &= !key.trigger.implied_modifier();
+
         // A modifier is required because MRU remains on screen as long as any modifier is held.
-        if key.modifiers.is_empty() {
+        if modifiers.is_empty() {
             ctx.emit_error(DecodeError::unexpected(
                 &node.node_name,
                 "keybind",
@@ -336,7 +345,7 @@ where
 
         // FIXME: To support this, all the mods_with_mouse_binds()/mods_with_*wheel_binds()/etc.
         // will need to learn about recent-windows bindings.
-        if !matches!(key.trigger, Trigger::Keysym(_)) {
+        if !key.trigger.is_keyboard() {
             ctx.emit_error(DecodeError::unexpected(
                 &node.node_name,
                 "key",
