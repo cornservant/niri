@@ -1675,7 +1675,7 @@ impl State {
         }
 
         // Create new named workspaces.
-        for ws_config in &config.workspaces {
+        for ws_config in config.workspaces.iter().rev() {
             self.niri.layout.ensure_named_workspace(ws_config);
         }
 
@@ -1946,7 +1946,7 @@ impl State {
         for output in self.niri.global_space.outputs() {
             let name = output.user_data().get::<OutputName>().unwrap();
             let full_config = self.niri.config.borrow_mut();
-            let config = full_config.outputs.find(name);
+            let config = full_config.outputs.find_rev(name);
 
             let scale = config
                 .and_then(|c| c.scale)
