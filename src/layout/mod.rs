@@ -1779,7 +1779,7 @@ impl<W: LayoutElement> Layout<W> {
         }
     }
 
-    fn active_monitor(&mut self) -> Option<&mut Monitor<W>> {
+    pub fn active_monitor(&mut self) -> Option<&mut Monitor<W>> {
         let MonitorSet::Normal {
             monitors,
             active_monitor_idx,
