@@ -2,7 +2,7 @@ use knuffel::errors::DecodeError;
 use smithay::input::keyboard::Keysym;
 
 use crate::utils::{expect_only_children, MergeWith};
-use crate::{Action, Bind, Color, FloatOrInt, Key, Modifiers, Trigger};
+use crate::{Action, Bind, BoundAction, Color, FloatOrInt, Key, Modifiers, Trigger};
 
 #[derive(Debug, PartialEq)]
 pub struct RecentWindows {
@@ -146,7 +146,7 @@ impl From<MruBind> for Bind {
     fn from(x: MruBind) -> Self {
         Self {
             key: x.key,
-            action: Action::from(x.action),
+            action: BoundAction::Press(Action::from(x.action)),
             repeat: true,
             cooldown: None,
             allow_when_locked: false,
