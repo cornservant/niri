@@ -2445,6 +2445,9 @@ impl State {
                     self.niri.queue_redraw_mru_output();
                 }
             }
+            Action::SetPointerLocation(niri_ipc::Point { x, y }) => {
+                unimplemented!();
+            }
             Action::TestAction => {
                 #[cfg(test)]
                 {
