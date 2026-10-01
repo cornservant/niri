@@ -2780,6 +2780,9 @@ impl State {
                     shell.deactivate_action(action, time, &mut self.niri.activation_state);
                 }
             }
+            Action::SetPointerLocation(niri_ipc::Point { x, y }) => {
+                unimplemented!();
+            }
             Action::TestAction => {
                 #[cfg(test)]
                 {
