@@ -2696,8 +2696,8 @@ impl GammaProps {
             }
 
             let (red, rest) = gamma.split_at(gamma_size);
-            let (blue, green) = rest.split_at(gamma_size);
-            let mut data = zip(zip(red, blue), green)
+            let (green, blue) = rest.split_at(gamma_size);
+            let mut data = zip(zip(red, green), blue)
                 .map(|((&red, &green), &blue)| drm_color_lut {
                     red,
                     green,
