@@ -398,7 +398,7 @@ pub struct SurfaceDmabufFeedback {
 struct GammaProps {
     crtc: crtc::Handle,
     gamma_lut: property::Handle,
-    gamma_lut_size: property::Handle,
+    gamma_lut_size: u32,
     previous_blob: Option<NonZeroU64>,
 }
 
@@ -2093,7 +2093,7 @@ impl Tty {
 
         let surface = device.surfaces.get(&crtc).context("missing surface")?;
         if let Some(gamma_props) = &surface.gamma_props {
-            gamma_props.gamma_size(&device.drm)
+            Ok(gamma_props.gamma_size())
         } else {
             let info = device
                 .drm
@@ -2630,7 +2630,7 @@ impl GammaProps {
         let props = device
             .get_properties(crtc)
             .context("error getting properties")?;
-        for (prop, _) in props {
+        for (prop, value) in props {
             let Ok(info) = device.get_property(prop) else {
                 continue;
             };
@@ -2652,7 +2652,7 @@ impl GammaProps {
                         matches!(info.value_type(), property::ValueType::UnsignedRange(_, _)),
                         "wrong GAMMA_LUT_SIZE value type"
                     );
-                    gamma_lut_size = Some(prop);
+                    gamma_lut_size = Some(value as u32);
                 }
                 _ => (),
             }
@@ -2669,19 +2669,15 @@ impl GammaProps {
         })
     }
 
-    fn gamma_size(&self, device: &DrmDevice) -> anyhow::Result<u32> {
-        let value = get_drm_property(device, self.crtc, self.gamma_lut_size)
-            .context("missing GAMMA_LUT_SIZE property")?;
-        Ok(value as u32)
+    fn gamma_size(&self) -> u32 {
+        self.gamma_lut_size
     }
 
     fn set_gamma(&mut self, device: &DrmDevice, gamma: Option<&[u16]>) -> anyhow::Result<()> {
         let _span = tracy_client::span!("GammaProps::set_gamma");
 
         let blob = if let Some(gamma) = gamma {
-            let gamma_size = self
-                .gamma_size(device)
-                .context("error getting gamma size")? as usize;
+            let gamma_size = self.gamma_size() as usize;
 
             ensure!(gamma.len() == gamma_size * 3, "wrong gamma length");
 
@@ -2910,24 +2906,6 @@ fn find_drm_property(
 
         (n == name).then_some((handle, info, value))
     })
-}
-
-fn get_drm_property(
-    drm: &DrmDevice,
-    resource: impl ResourceHandle,
-    prop: property::Handle,
-) -> Option<property::RawValue> {
-    let props = match drm.get_properties(resource) {
-        Ok(props) => props,
-        Err(err) => {
-            warn!("error getting properties: {err:?}");
-            return None;
-        }
-    };
-
-    props
-        .into_iter()
-        .find_map(|(handle, value)| (handle == prop).then_some(value))
 }
 
 fn refresh_interval(mode: DrmMode) -> Duration {
