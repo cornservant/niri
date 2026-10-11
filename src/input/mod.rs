@@ -3752,11 +3752,7 @@ impl State {
                             }
                         }
                     } else if !tool.is_grabbed() {
-                        if self.niri.layout.is_overview_open()
-                            && !mod_down
-                            && under.layer.is_none()
-                            && under.output.is_some()
-                        {
+                        if under.overview && !mod_down && under.output.is_some() {
                             let (output, pos_within_output) = self.niri.output_under(pos).unwrap();
                             let output = output.clone();
 
@@ -4371,11 +4367,7 @@ impl State {
                 }
             }
         } else if !handle.is_grabbed() {
-            if self.niri.layout.is_overview_open()
-                && !mod_down
-                && under.layer.is_none()
-                && under.output.is_some()
-            {
+            if under.overview && !mod_down && under.output.is_some() {
                 let (output, pos_within_output) = self.niri.output_under(pos).unwrap();
                 let output = output.clone();
 
