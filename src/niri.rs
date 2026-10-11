@@ -563,7 +563,7 @@ pub struct PointContents {
     pub window: Option<(Window, HitType)>,
     // If surface belongs to a layer surface, this is that layer surface.
     pub layer: Option<LayerSurface>,
-    // Pointer is over a hot corner.
+    // Point is over a hot corner.
     pub hot_corner: bool,
 }
 
