@@ -2884,7 +2884,12 @@ impl State {
                 }
             }
 
-            if button == Some(MouseButton::Middle) && !pointer.is_grabbed() && mod_down {
+            if button == Some(MouseButton::Middle)
+                && !pointer.is_grabbed()
+                && mod_down
+                && !self.niri.is_locked()
+                && !self.niri.screenshot_ui.is_open()
+            {
                 let output_ws = if is_overview_open {
                     self.niri.workspace_under_cursor(true)
                 } else {
