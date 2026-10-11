@@ -3138,27 +3138,15 @@ impl State {
             vertical_amount_v120.unwrap_or(0.0) / 120. * 15.
         });
 
-        let is_overview_open = self.niri.layout.is_overview_open();
-
-        // We should only handle scrolling in the overview if the pointer is not over a (top or
-        // overlay) layer surface.
-        let should_handle_in_overview = if is_overview_open {
-            // FIXME: ideally this should happen after updating the pointer contents, which happens
-            // below. However, our pointer actions are supposed to act on the old surface, before
-            // updating the pointer contents.
-            pointer
-                .current_focus()
-                .map(|surface| self.niri.find_root_shell_surface(&surface))
-                .is_none_or(|root| {
-                    !self
-                        .niri
-                        .mapped_layer_surfaces
-                        .keys()
-                        .any(|layer| *layer.wl_surface() == root)
-                })
-        } else {
-            false
-        };
+        // Check the contents before updating them as pointer binds are supposed to act on the
+        // previous focus.
+        //
+        // Recompute rather than using self.niri.pointer_contents in order to take into account
+        // making the pointer visible and unsetting the tablet cursor location.
+        let should_handle_in_overview = self
+            .niri
+            .contents_under(pointer.current_location())
+            .overview;
 
         let is_mru_open = self.niri.window_mru_ui.is_open();
 
