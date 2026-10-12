@@ -718,13 +718,25 @@ impl State {
             }
             Action::ChangeVt(vt) => {
                 self.backend.change_vt(vt);
+
                 // Changing VT may not deliver the key releases, so clear the state.
                 self.niri.suppressed_keys.clear();
+
+                // Stop ongoing key repeat if any.
+                if let Some(token) = self.niri.bind_repeat_timer.take() {
+                    self.niri.event_loop.remove(token);
+                }
             }
             Action::Suspend => {
                 self.backend.suspend();
+
                 // Suspend may not deliver the key releases, so clear the state.
                 self.niri.suppressed_keys.clear();
+
+                // Stop ongoing key repeat if any.
+                if let Some(token) = self.niri.bind_repeat_timer.take() {
+                    self.niri.event_loop.remove(token);
+                }
             }
             Action::PowerOffMonitors => {
                 self.niri.deactivate_monitors(&mut self.backend);
