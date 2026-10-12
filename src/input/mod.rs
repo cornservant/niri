@@ -4676,7 +4676,9 @@ fn find_bind<'a>(
                 modifiers: Modifiers::empty(),
             },
             action,
-            repeat: true,
+            // Repeating VT switches and power off doesn't make sense (and it actually happens on
+            // FreeBSD where it doesn't get released and ends up broken).
+            repeat: false,
             cooldown: None,
             allow_when_locked: false,
             // In a worst-case scenario, the user has no way to unlock the compositor and a
