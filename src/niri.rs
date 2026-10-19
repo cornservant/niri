@@ -15,6 +15,7 @@ use anyhow::{bail, ensure, Context};
 use calloop::futures::Scheduler;
 use niri_config::debug::PreviewRender;
 use niri_config::output::MaxBpc;
+use niri_config::window_rule::VrrRule;
 use niri_config::{
     Config, FloatOrInt, Key, Modifiers, OutputName, TrackLayout, WarpMouseToFocusMode,
     WorkspaceReference, Xkb,
@@ -5016,19 +5017,34 @@ impl Niri {
             return;
         }
 
-        let current = self.layout.windows_for_output(output).any(|mapped| {
-            mapped.rules().variable_refresh_rate == Some(true) && {
-                let mut visible = false;
-                mapped.window.with_surfaces(|surface, states| {
-                    if !visible
-                        && surface_primary_scanout_output(surface, states).as_ref() == Some(output)
-                    {
-                        visible = true;
-                    }
-                });
-                visible
-            }
-        });
+        // Check for fullscreen-only VRR first as that's cheaper.
+        let mon = self.layout.monitor_for_output(output).unwrap();
+        // We allow the overlay layer and floating windows for this check
+        // so VRR keeps working with overlays.
+        let current = mon
+            .fullscreen_window_above_top_layer()
+            .is_some_and(|mapped| {
+                mapped.rules().variable_refresh_rate == Some(VrrRule::FullscreenOnly)
+            });
+
+        let current = current
+            || self.layout.windows_for_output(output).any(|mapped| {
+                mapped.rules().variable_refresh_rate == Some(VrrRule::On) && {
+                    let mut visible = false;
+                    mapped.window.with_surfaces(|surface, states| {
+                        if visible {
+                            // Skip checking.
+                            return;
+                        }
+
+                        if surface_primary_scanout_output(surface, states).as_ref() == Some(output)
+                        {
+                            visible = true;
+                        }
+                    });
+                    visible
+                }
+            });
 
         backend.set_output_on_demand_vrr(self, output, current);
     }
