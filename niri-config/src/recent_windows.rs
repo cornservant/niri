@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use knuffel::errors::DecodeError;
 use smithay::input::keyboard::Keysym;
 
@@ -262,26 +260,34 @@ where
     ) -> Result<Self, DecodeError<S>> {
         expect_only_children(node, ctx);
 
-        let mut seen_keys = HashSet::new();
-
-        let mut binds = Vec::new();
+        let mut nodes: Vec<&knuffel::ast::SpannedNode<S>> = Vec::new();
+        let mut binds: Vec<MruBind> = Vec::new();
 
         for child in node.children() {
             match MruBind::decode_node(child, ctx) {
+                Err(e) => {
+                    ctx.emit_error(e);
+                }
                 Ok(bind) => {
-                    if !seen_keys.insert(bind.key) {
+                    let conflict = binds.iter().position(|prev| prev.key == bind.key);
+                    if let Some(idx) = conflict {
+                        // Even though it's technically incorrect, we use
+                        // `DecodeError::Missing` here because it labels the bind with
+                        // "node starts here", which is the least bad option
+                        ctx.emit_error(DecodeError::missing(
+                            nodes[idx],
+                            "keybind first defined here",
+                        ));
+
                         ctx.emit_error(DecodeError::unexpected(
                             &child.node_name,
                             "keybind",
-                            "duplicate keybind",
+                            "duplicate keybind later defined here",
                         ));
-                        continue;
+                    } else {
+                        nodes.push(child);
+                        binds.push(bind);
                     }
-
-                    binds.push(bind);
-                }
-                Err(e) => {
-                    ctx.emit_error(e);
                 }
             }
         }
