@@ -18,8 +18,8 @@ use niri_config::input::XkbFile;
 use niri_config::output::MaxBpc;
 use niri_config::window_rule::VrrRule;
 use niri_config::{
-    Bind, Config, FloatOrInt, Key, Modifiers, OutputName, TrackLayout, WarpMouseToFocusMode,
-    WorkspaceReference, Xkb,
+    Bind, Config, FloatOrInt, Key, Modifiers, OutputName, OutputReference, TrackLayout,
+    WarpMouseToFocusMode, WorkspaceReference, Xkb,
 };
 use smithay::backend::allocator::Fourcc;
 use smithay::backend::input::{InputTime, Keycode};
@@ -152,6 +152,7 @@ use crate::input::{
 use crate::ipc::server::IpcServer;
 use crate::layer::mapped::LayerSurfaceRenderElement;
 use crate::layer::MappedLayer;
+use crate::layout::monitor::Monitor;
 use crate::layout::tile::TileRenderElement;
 use crate::layout::workspace::{Workspace, WorkspaceId};
 use crate::layout::{
@@ -7357,6 +7358,76 @@ impl Niri {
         if let Some(output) = self.window_mru_ui.output().cloned() {
             self.queue_redraw(&output);
         }
+    }
+
+    pub fn switch_workspace_down(&mut self, output_ref: OutputReference) {
+        if let Some(monitor) = self.monitor_mut(output_ref) {
+            monitor.switch_workspace_down()
+        }
+    }
+
+    pub fn switch_workspace_up(&mut self, output_ref: OutputReference) {
+        if let Some(monitor) = self.monitor_mut(output_ref) {
+            monitor.switch_workspace_up()
+        }
+    }
+
+    pub fn move_workspace_down(&mut self, output_ref: OutputReference) {
+        if let Some(monitor) = self.monitor_mut(output_ref) {
+            monitor.move_workspace_down()
+        }
+    }
+
+    pub fn move_workspace_up(&mut self, output_ref: OutputReference) {
+        if let Some(monitor) = self.monitor_mut(output_ref) {
+            monitor.move_workspace_up()
+        }
+    }
+
+    pub fn monitor_mut(&mut self, output_ref: OutputReference) -> Option<&mut Monitor<Mapped>> {
+        match output_ref {
+            OutputReference::Active => self.layout.active_monitor(),
+            OutputReference::UnderCursor => self
+                .output_under_cursor()
+                .and_then(|output| self.layout.monitor_for_output_mut(&output)),
+            OutputReference::OutputName(name) => self
+                .output_by_name_match(&name)
+                .cloned()
+                .and_then(|output| self.layout.monitor_for_output_mut(&output)),
+        }
+    }
+
+    pub(crate) fn clamp_pointer_location_to_existing_output(
+        &self,
+        new_pos: Point<f64, Logical>,
+    ) -> Point<f64, Logical> {
+        let pointer = &self.seat.get_pointer().unwrap();
+        let pos = pointer.current_location();
+
+        if self.global_space.output_under(new_pos).next().is_none() {
+            // We ended up outside the outputs and need to clip the movement.
+            if let Some(output) = self.global_space.output_under(pos).next() {
+                // The pointer was previously on some output. Clip the movement against its
+                // boundaries.
+                let geom = self.global_space.output_geometry(output).unwrap();
+                return Point::new(
+                    new_pos
+                        .x
+                        .clamp(geom.loc.x as f64, (geom.loc.x + geom.size.w - 1) as f64),
+                    new_pos
+                        .y
+                        .clamp(geom.loc.y as f64, (geom.loc.y + geom.size.h - 1) as f64),
+                );
+            } else {
+                // The pointer was not on any output in the first place. Find one for it.
+                // Let's do the simple thing and just put it on the first output.
+                let output = self.global_space.outputs().next().unwrap();
+                let geom = self.global_space.output_geometry(output).unwrap();
+                return center(geom).to_f64();
+            }
+        }
+
+        new_pos
     }
 }
 

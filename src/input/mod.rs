@@ -50,6 +50,7 @@ use self::resize_grab::ResizeGrab;
 use self::spatial_movement_grab::SpatialMovementGrab;
 #[cfg(feature = "dbus")]
 use crate::dbus::freedesktop_a11y::KbMonBlock;
+use crate::input::virtual_pointer::VirtualPointer;
 use crate::layout::scrolling::ScrollDirection;
 use crate::layout::{ActivateWindow, LayoutElement as _};
 use crate::niri::{CastTarget, Niri, PointerVisibility, State};
@@ -69,6 +70,7 @@ pub mod scroll_tracker;
 pub mod spatial_movement_grab;
 pub mod swipe_tracker;
 pub mod touch_overview_grab;
+pub mod virtual_pointer;
 
 use backend_ext::{NiriInputBackend as InputBackend, NiriInputDevice as _};
 
@@ -1682,8 +1684,8 @@ impl State {
                 // FIXME: granular
                 self.niri.queue_redraw_all();
             }
-            Action::FocusWorkspaceDown => {
-                self.niri.layout.switch_workspace_down();
+            Action::FocusWorkspaceDown(output_ref) => {
+                self.niri.switch_workspace_down(output_ref);
                 self.maybe_warp_cursor_to_focus();
                 self.niri.layer_shell_on_demand_focus = None;
                 // FIXME: granular
@@ -1699,8 +1701,8 @@ impl State {
                     }
                 }
             }
-            Action::FocusWorkspaceUp => {
-                self.niri.layout.switch_workspace_up();
+            Action::FocusWorkspaceUp(output_ref) => {
+                self.niri.switch_workspace_up(output_ref);
                 self.maybe_warp_cursor_to_focus();
                 self.niri.layer_shell_on_demand_focus = None;
                 // FIXME: granular
@@ -1754,13 +1756,13 @@ impl State {
                 // FIXME: granular
                 self.niri.queue_redraw_all();
             }
-            Action::MoveWorkspaceDown => {
-                self.niri.layout.move_workspace_down();
+            Action::MoveWorkspaceDown(output_ref) => {
+                self.niri.move_workspace_down(output_ref);
                 // FIXME: granular
                 self.niri.queue_redraw_all();
             }
-            Action::MoveWorkspaceUp => {
-                self.niri.layout.move_workspace_up();
+            Action::MoveWorkspaceUp(output_ref) => {
+                self.niri.move_workspace_up(output_ref);
                 // FIXME: granular
                 self.niri.queue_redraw_all();
             }
@@ -2640,6 +2642,22 @@ impl State {
                 if self.niri.window_mru_ui.is_open() {
                     self.niri.window_mru_ui.cycle_scope();
                     self.niri.queue_redraw_mru_output();
+                }
+            }
+            Action::SetPointerLocation(niri_ipc::Point { x, y }) => {
+                if let Some(pointer) = self.niri.seat.get_pointer() {
+                    let new_pos = self
+                        .niri
+                        .clamp_pointer_location_to_existing_output(Point::new(x, y));
+                    self.on_pointer_motion::<VirtualPointer>(
+                        VirtualPointer::new_pointer_motion_event(
+                            pointer,
+                            new_pos,
+                            get_monotonic_time(),
+                        ),
+                    );
+                } else {
+                    error!("set-pointer-location: no pointer");
                 }
             }
             Action::TestAction => {
