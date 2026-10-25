@@ -53,6 +53,7 @@
 #![warn(missing_docs)]
 
 use std::collections::HashMap;
+use std::convert::Infallible;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -85,6 +86,8 @@ pub enum Request {
     PickWindow,
     /// Request picking a color from the screen.
     PickColor,
+    /// Request information about the pointer.
+    Pointer,
     /// Perform an action.
     Action(Action),
     /// Change output configuration temporarily.
@@ -159,6 +162,8 @@ pub enum Response {
     PickedWindow(Option<Window>),
     /// Information about the picked color.
     PickedColor(Option<PickedColor>),
+    /// Information about the pointer.
+    Pointer(Option<Pointer>),
     /// Output configuration change result.
     OutputConfigChanged(OutputConfigChanged),
     /// Information about the overview.
@@ -181,6 +186,23 @@ pub struct Overview {
 pub struct PickedColor {
     /// Color values as red, green, blue, each ranging from 0.0 to 1.0.
     pub rgb: [f64; 3],
+}
+
+/// Location coordinates.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PartialOrd)]
+pub struct Point {
+    /// x coordinate
+    pub x: f64,
+    /// y coordinate
+    pub y: f64,
+}
+
+/// Pointer information.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
+pub struct Pointer {
+    /// Location of the pointer in the global space.
+    pub location: Point,
 }
 
 /// Actions that niri can perform.
@@ -477,9 +499,21 @@ pub enum Action {
     /// Center all fully visible columns on the screen.
     CenterVisibleColumns {},
     /// Focus the workspace below.
-    FocusWorkspaceDown {},
+    FocusWorkspaceDown {
+        /// Output on which to focus the workspace below.
+        ///
+        /// Possible values: "active", "under-cursor", name of the output.
+        #[cfg_attr(feature = "clap", arg(long, default_value_t = OutputReferenceArg::Active))]
+        output: OutputReferenceArg,
+    },
     /// Focus the workspace above.
-    FocusWorkspaceUp {},
+    FocusWorkspaceUp {
+        /// Output on which to focus the workspace above.
+        ///
+        /// Possible values: "active", "under-cursor", name of the output.
+        #[cfg_attr(feature = "clap", arg(long, default_value_t = OutputReferenceArg::Active))]
+        output: OutputReferenceArg,
+    },
     /// Focus a workspace by reference (index or name).
     FocusWorkspace {
         /// Reference (index or name) of the workspace to focus.
@@ -568,9 +602,21 @@ pub enum Action {
         focus: bool,
     },
     /// Move the focused workspace down.
-    MoveWorkspaceDown {},
+    MoveWorkspaceDown {
+        /// Output on which to move the workspace down.
+        ///
+        /// Possible values: "active", "under-cursor", name of the output.
+        #[cfg_attr(feature = "clap", arg(long, default_value_t = OutputReferenceArg::Active))]
+        output: OutputReferenceArg,
+    },
     /// Move the focused workspace up.
-    MoveWorkspaceUp {},
+    MoveWorkspaceUp {
+        /// Output on which to move the workspace up.
+        ///
+        /// Possible values: "active", "under-cursor", name of the output.
+        #[cfg_attr(feature = "clap", arg(long, default_value_t = OutputReferenceArg::Active))]
+        output: OutputReferenceArg,
+    },
     /// Move a workspace to a specific index on its monitor.
     #[cfg_attr(
         feature = "clap",
@@ -959,6 +1005,13 @@ pub enum Action {
         #[cfg_attr(feature = "clap", arg(long))]
         path: Option<String>,
     },
+    /// Set pointer location
+    SetPointerLocation {
+        /// Desired x coordinate
+        x: f64,
+        /// Desired y coordinate
+        y: f64,
+    },
 }
 
 /// Change in window or column size.
@@ -999,6 +1052,18 @@ pub enum WorkspaceReferenceArg {
     Index(u8),
     /// Name of the workspace.
     Name(String),
+}
+
+/// Output reference (active, under cursor, or name) to operate on.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
+pub enum OutputReferenceArg {
+    /// Id of the workspace.
+    Active,
+    /// Index of the workspace.
+    UnderCursor,
+    /// Name of the workspace.
+    OutputName(String),
 }
 
 /// Layout to switch to.
@@ -1806,6 +1871,28 @@ impl FromStr for WorkspaceReferenceArg {
     }
 }
 
+impl FromStr for OutputReferenceArg {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "active" => OutputReferenceArg::Active,
+            "under-cursor" => OutputReferenceArg::UnderCursor,
+            _ => OutputReferenceArg::OutputName(s.to_string()),
+        })
+    }
+}
+
+impl ToString for OutputReferenceArg {
+    fn to_string(&self) -> String {
+        match self {
+            OutputReferenceArg::Active => "active".to_string(),
+            OutputReferenceArg::UnderCursor => "under-cursor".to_string(),
+            OutputReferenceArg::OutputName(name) => name.to_string(),
+        }
+    }
+}
+
 impl FromStr for SizeChange {
     type Err = &'static str;
 
@@ -2056,6 +2143,24 @@ macro_rules! ensure {
             return Err(format!($fmt $($arg)*));
         }
     };
+}
+
+impl ColumnDisplay {
+    /// Returns `true` if the column display is [`Normal`]
+    ///
+    /// [`Normal`]: ColumnDisplay::Normal
+    #[must_use]
+    pub fn is_normal(&self) -> bool {
+        *self == ColumnDisplay::Normal
+    }
+
+    /// Returns `true` if the column display is [`Tabbed`]
+    ///
+    /// [`Tabbed`]: ColumnDisplay::Tabbed
+    #[must_use]
+    pub fn is_tabbed(&self) -> bool {
+        *self == ColumnDisplay::Tabbed
+    }
 }
 
 impl OutputAction {
