@@ -741,6 +741,54 @@ fn layouts() {
     -AD04  27 XK_r
         surface key released: 19
     ");
+
+    // We require the modifiers to match the bind for it to trigger.
+    // So Ctrl-? cannot be triggered on us-qwerty since entering ? necessarily requires a Shift.
+    // If you spell out Shift like Super-Shift-?, it should be triggerable (but currently isn't).
+    let c = r#"
+    input {
+        keyboard {
+            xkb {
+                layout "us"
+            }
+        }
+    }
+
+    binds {
+        Ctrl+question { close-window; }
+        Super+Shift+question { close-window; }
+    }
+    "#;
+    assert_snapshot!(run(c, "+LCTL +AB10 -AB10 +LFSH +AB10 -AB10"),
+    @"
+    +LCTL  37 XK_Control_L
+        surface key pressed: 29
+        surface modifiers: depressed=4, latched=0, locked=0, group=0
+    +AB10  61 XK_slash
+        surface key pressed: 53
+    -AB10  61 XK_slash
+        surface key released: 53
+    +LFSH  50 XK_Shift_L
+        surface key pressed: 42
+        surface modifiers: depressed=5, latched=0, locked=0, group=0
+    +AB10  61 XK_question
+        surface key pressed: 53
+    -AB10  61 XK_question
+        surface key released: 53
+    ");
+    assert_snapshot!(run(c, "+LWIN +LFSH +AB10 -AB10"),
+    @"
+    +LWIN 133 XK_Super_L
+        surface key pressed: 125
+        surface modifiers: depressed=64, latched=0, locked=0, group=0
+    +LFSH  50 XK_Shift_L
+        surface key pressed: 42
+        surface modifiers: depressed=65, latched=0, locked=0, group=0
+    +AB10  61 XK_question
+        surface key pressed: 53
+    -AB10  61 XK_question
+        surface key released: 53
+    ");
 }
 
 #[test]
