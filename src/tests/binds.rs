@@ -669,6 +669,78 @@ fn layouts() {
         surface modifiers: depressed=0, latched=0, locked=0, group=1
     "
     );
+
+    // ASCII binds on Russian should search the configured ASCII layout, not QWERTY.
+    // LatR corresponds to P on colemak_dh_ortho.
+    let c = r#"
+    input {
+        keyboard {
+            xkb {
+                layout "us,ru"
+                variant "colemak_dh_ortho,"
+                options "grp:lalt_toggle"
+            }
+        }
+    }
+
+    binds {
+        P { close-window; }
+    }
+    "#;
+    assert_snapshot!(run(c, "+LALT -LALT +LatR -LatR"),
+    @"
+    +LALT  64 XK_ISO_Next_Group
+        surface key pressed: 56
+        surface modifiers: depressed=0, latched=0, locked=0, group=1
+    -LALT  64 XK_ISO_Next_Group
+        surface key released: 56
+    +AD04  27 XK_Cyrillic_ka
+        niri test-action
+    -AD04  27 XK_Cyrillic_ka
+    ");
+
+    // ASCII fallback should find the first configured ASCII layout.
+    let c = r#"
+    input {
+        keyboard {
+            xkb {
+                layout "ru,us,us"
+                variant ",colemak_dh_ortho,"
+                options "grp:lalt_toggle"
+            }
+        }
+    }
+
+    binds {
+        P { close-window; }
+    }
+    "#;
+    // Input in ru (should fall back to us-colemak),
+    // then input in us-colemak (no fallback, works),
+    // then input in us-qwerty (no fallback, no bind).
+    assert_snapshot!(run(c, "+LatR -LatR +LALT -LALT +LatR -LatR +LALT -LALT +LatR -LatR"),
+    @"
+    +AD04  27 XK_Cyrillic_ka
+        niri test-action
+    -AD04  27 XK_Cyrillic_ka
+    +LALT  64 XK_ISO_Next_Group
+        surface key pressed: 56
+        surface modifiers: depressed=0, latched=0, locked=0, group=1
+    -LALT  64 XK_ISO_Next_Group
+        surface key released: 56
+    +AD04  27 XK_p
+        niri test-action
+    -AD04  27 XK_p
+    +LALT  64 XK_ISO_Next_Group
+        surface key pressed: 56
+        surface modifiers: depressed=0, latched=0, locked=0, group=2
+    -LALT  64 XK_ISO_Next_Group
+        surface key released: 56
+    +AD04  27 XK_r
+        surface key pressed: 19
+    -AD04  27 XK_r
+        surface key released: 19
+    ");
 }
 
 #[test]
