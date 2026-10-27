@@ -571,7 +571,7 @@ impl State {
                 }
 
                 if this.niri.exit_confirm_dialog.is_open() && pressed {
-                    if raw == Some(Keysym::Return) {
+                    if modified == Some(Keysym::Return) {
                         info!("quitting after confirming exit dialog");
                         this.niri.stop_signal.stop();
                     }
@@ -595,7 +595,7 @@ impl State {
                     );
                 }
 
-                if pressed && raw == Some(Keysym::Escape) {
+                if pressed && modified == Some(Keysym::Escape) {
                     // Cancel certain grabs on Escape.
                     let pointer = this.niri.seat.get_pointer().unwrap();
                     if pointer
@@ -608,7 +608,7 @@ impl State {
                     }
                 }
 
-                if let Some(Keysym::space) = raw {
+                if modified == Some(Keysym::space) {
                     this.niri.screenshot_ui.set_space_down(pressed);
                 }
 
@@ -649,7 +649,7 @@ impl State {
                     // If we didn't find any bind, try other hardcoded keys.
                     if this.niri.keyboard_focus.is_overview() && pressed {
                         if let Some(bind) =
-                            raw.and_then(|raw| hardcoded_overview_bind(raw, modifiers))
+                            modified.and_then(|key| hardcoded_overview_bind(key, modifiers))
                         {
                             this.niri.suppressed_keys.insert(key_code);
                             return ShouldInterceptResult::InterceptAndHandle(bind);
