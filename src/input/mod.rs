@@ -4915,11 +4915,11 @@ fn find_bind<'a>(
         .cloned()
 }
 
-fn trigger_matches_keysym(trigger: Trigger, raw: Keysym, mod_key: ModKey) -> bool {
+fn trigger_matches_keysym(trigger: Trigger, key: Keysym, mod_key: ModKey) -> bool {
     match trigger {
-        Trigger::CompositorMod => mod_key.matches_keysym(raw),
-        Trigger::Keysym(keysym) => keysym == raw,
-        Trigger::Modifier(modifier) => modifier.matches_keysym(raw),
+        Trigger::CompositorMod => mod_key.matches_keysym(key),
+        Trigger::Keysym(keysym) => keysym == key,
+        Trigger::Modifier(modifier) => modifier.matches_keysym(key),
         _ => false,
     }
 }
@@ -5196,14 +5196,14 @@ fn bind_allowed_during_screenshot(bind: &Bind, pressed: bool) -> bool {
     }
 }
 
-fn hardcoded_overview_bind(raw: Keysym, mods: ModifiersState) -> Option<Bind> {
+fn hardcoded_overview_bind(key: Keysym, mods: ModifiersState) -> Option<Bind> {
     let mods = modifiers_from_state(mods);
     if !mods.is_empty() {
         return None;
     }
 
     let mut repeat = true;
-    let action = match raw {
+    let action = match key {
         Keysym::Escape | Keysym::Return => {
             repeat = false;
             Action::ToggleOverview
@@ -5219,7 +5219,7 @@ fn hardcoded_overview_bind(raw: Keysym, mods: ModifiersState) -> Option<Bind> {
 
     Some(Bind {
         key: Key {
-            trigger: Trigger::Keysym(raw),
+            trigger: Trigger::Keysym(key),
             modifiers: Modifiers::empty(),
         },
         action: BoundAction::Press(action),
