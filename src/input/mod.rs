@@ -522,6 +522,7 @@ impl State {
             |this, mods, keysym| {
                 let key_code = event.key_code();
                 let modified = keysym.modified_sym();
+                let modified = (modified != Keysym::NoSymbol).then_some(modified);
                 let raw = keysym.raw_latin_sym_or_raw_current_sym();
                 let modifiers = modifiers_from_state(*mods);
 
@@ -552,14 +553,16 @@ impl State {
 
                         let forward = matches!(
                             modified,
-                            Keysym::Shift_L
-                                | Keysym::Shift_R
-                                | Keysym::Control_L
-                                | Keysym::Control_R
-                                | Keysym::Super_L
-                                | Keysym::Super_R
-                                | Keysym::Alt_L
-                                | Keysym::Alt_R
+                            Some(
+                                Keysym::Shift_L
+                                    | Keysym::Shift_R
+                                    | Keysym::Control_L
+                                    | Keysym::Control_R
+                                    | Keysym::Super_L
+                                    | Keysym::Super_R
+                                    | Keysym::Alt_L
+                                    | Keysym::Alt_R
+                            )
                         );
                         return bind_intercept_result(bind, forward);
                     }
@@ -4749,7 +4752,7 @@ fn should_intercept_key<'a>(
     bindings: impl IntoIterator<Item = &'a Bind>,
     mod_key: ModKey,
     key_code: Keycode,
-    modified: Keysym,
+    modified: Option<Keysym>,
     raw: Option<Keysym>,
     pressed: bool,
     mods: Modifiers,
@@ -4782,7 +4785,7 @@ fn should_intercept_key<'a>(
                 // or forward the press.
                 suppressed_keys.insert(key_code);
                 ShouldInterceptResult::InterceptOnly
-            } else if is_keysym_modifier(modified) {
+            } else if modified.is_some_and(is_keysym_modifier) {
                 if should_record_release_bind(&bind, is_locked, is_in_screenshot, cooldown_timers) {
                     pending_release_binds.insert(key_code, bind.clone());
                 }
@@ -4819,7 +4822,7 @@ fn should_intercept_key<'a>(
 fn find_bind<'a>(
     bindings: impl IntoIterator<Item = &'a Bind>,
     mod_key: ModKey,
-    modified: Keysym,
+    modified: Option<Keysym>,
     raw: Option<Keysym>,
     mods: Modifiers,
     disable_power_key_handling: bool,
@@ -4830,7 +4833,7 @@ fn find_bind<'a>(
 
     // Handle hardcoded binds.
     #[allow(non_upper_case_globals)] // wat
-    let hardcoded_action = match modified.raw() {
+    let hardcoded_action = match modified.map_or(KEY_NoSymbol, Keysym::raw) {
         modified @ KEY_XF86Switch_VT_1..=KEY_XF86Switch_VT_12 => {
             let vt = (modified - KEY_XF86Switch_VT_1 + 1) as i32;
             Some(Action::ChangeVt(vt))
@@ -4843,7 +4846,7 @@ fn find_bind<'a>(
         return Some(Bind {
             key: Key {
                 // Not entirely correct but it doesn't matter in how we currently use it.
-                trigger: Trigger::Keysym(modified),
+                trigger: Trigger::Keysym(modified.unwrap()),
                 modifiers: Modifiers::empty(),
             },
             action: BoundAction::Press(action),
@@ -5738,7 +5741,7 @@ mod tests {
             &bindings.0,
             ModKey::Super,
             CLOSE_KEY_CODE,
-            CLOSE_KEYSYM,
+            Some(CLOSE_KEYSYM),
             Some(CLOSE_KEYSYM),
             pressed,
             mods,
