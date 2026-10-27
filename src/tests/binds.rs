@@ -586,9 +586,8 @@ fn layouts() {
     "
     );
 
-    // In ru, / is on the \ / key (so, Shift + \). So, arguably, it would make sense for Shift + /
-    // to trigger it, but it currently doesn't (niri requires an unshifted trigger key, despite
-    // working fine with capital case alphabetic keys).
+    // In ru, / is on the \ / key (so, Shift + \). So, Shift + \ inputs / and triggers
+    // the Shift + / bind.
     assert_snapshot!(
         run(c, "+LALT -LALT +LFSH +BKSL -BKSL -LFSH"),
         @"
@@ -601,17 +600,16 @@ fn layouts() {
         surface key pressed: 42
         surface modifiers: depressed=1, latched=0, locked=0, group=1
     +BKSL  51 XK_slash
-        surface key pressed: 43
+        niri test-action
     -BKSL  51 XK_slash
-        surface key released: 43
     -LFSH  50 XK_Shift_L
         surface key released: 42
         surface modifiers: depressed=0, latched=0, locked=0, group=1
     "
     );
 
-    // Я should trigger the Cyrillic_ya bind, but it currently doesn't. (Nobody binds keys like this
-    // in Russia, but people do in other countries with their non-ASCII characters.)
+    // Я should trigger the Cyrillic_ya bind. (Nobody binds keys like this in Russia,
+    // but people do in other countries with their non-ASCII characters.)
     assert_snapshot!(
         run(c, "+LALT -LALT +LatZ -LatZ"),
         @"
@@ -621,9 +619,8 @@ fn layouts() {
     -LALT  64 XK_ISO_Next_Group
         surface key released: 56
     +AB01  52 XK_Cyrillic_ya
-        surface key pressed: 44
+        niri test-action
     -AB01  52 XK_Cyrillic_ya
-        surface key released: 44
     "
     );
 
@@ -641,9 +638,8 @@ fn layouts() {
         surface key pressed: 42
         surface modifiers: depressed=1, latched=0, locked=0, group=1
     +AB02  53 XK_Cyrillic_CHE
-        surface key pressed: 45
+        niri test-action
     -AB02  53 XK_Cyrillic_CHE
-        surface key released: 45
     -LFSH  50 XK_Shift_L
         surface key released: 42
         surface modifiers: depressed=0, latched=0, locked=0, group=1
@@ -661,9 +657,8 @@ fn layouts() {
         surface key pressed: 42
         surface modifiers: depressed=1, latched=0, locked=0, group=1
     +AB03  54 XK_Cyrillic_ES
-        surface key pressed: 46
+        niri test-action
     -AB03  54 XK_Cyrillic_ES
-        surface key released: 46
     -LFSH  50 XK_Shift_L
         surface key released: 42
         surface modifiers: depressed=0, latched=0, locked=0, group=1
@@ -831,7 +826,7 @@ fn layouts() {
     -AC10  47 XK_colon
     ");
 
-    // ASCII fallback should work on dead keys too (currently doesn't).
+    // ASCII fallback should work on dead keys too.
     //
     // Greek has a dead key on ;.
     let c = r#"
@@ -850,14 +845,13 @@ fn layouts() {
     assert_snapshot!(run(c, "+AC10 -AC10"),
     @"
     +AC10  47 XK_dead_acute
-        surface key pressed: 39
+        niri test-action
     -AC10  47 XK_dead_acute
-        surface key released: 39
     ");
 
     // We require the modifiers to match the bind for it to trigger.
     // So Ctrl-? cannot be triggered on us-qwerty since entering ? necessarily requires a Shift.
-    // If you spell out Shift like Super-Shift-?, it should be triggerable (but currently isn't).
+    // If you spell out Shift like Super-Shift-?, it should be triggerable.
     let c = r#"
     input {
         keyboard {
@@ -898,9 +892,8 @@ fn layouts() {
         surface key pressed: 42
         surface modifiers: depressed=65, latched=0, locked=0, group=0
     +AB10  61 XK_question
-        surface key pressed: 53
+        niri test-action
     -AB10  61 XK_question
-        surface key released: 53
     ");
 
     // The BÉPO example from the docs. The key should be bindable by both « and < trigger.
@@ -940,7 +933,7 @@ fn layouts() {
         surface key pressed: 100
         surface modifiers: depressed=132, latched=0, locked=0, group=0
     +AE02  11 XK_less
-        surface key pressed: 3
+        niri test-action
     ");
 }
 

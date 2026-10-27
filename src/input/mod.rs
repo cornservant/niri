@@ -520,11 +520,77 @@ impl State {
             event.key_code(),
             event.state(),
             |this, mods, keysym| {
-                let key_code = event.key_code();
-                let modified = keysym.modified_sym();
-                let modified = (modified != Keysym::NoSymbol).then_some(modified);
-                let raw = keysym.raw_latin_sym_or_raw_current_sym();
+                let key_code = keysym.raw_code();
                 let modifiers = modifiers_from_state(*mods);
+
+                // When resolving a bind, we can try three keysyms:
+                // - modified: the actual final keysym we got by pressing this key
+                // - raw: keysym from the 0th layer of the current layout (usually lowercase letter)
+                // - raw_ascii: keysym from the same key on an ASCII layout
+                // (if raw isn't ASCII itself)
+                let (modified, raw, raw_ascii) = {
+                    let xkb = keysym.xkb();
+                    let xkb = xkb.lock().unwrap();
+
+                    // SAFETY: xkb_state does not outlive xkb.
+                    let (modified, layout) = unsafe {
+                        let xkb_state = xkb.state();
+                        (
+                            xkb_state.key_get_one_sym(key_code),
+                            Layout(xkb_state.key_get_layout(key_code)),
+                        )
+                    };
+                    let modified = (modified != Keysym::NoSymbol).then_some(modified);
+
+                    let raw_sym = |layout| {
+                        let raw_syms = xkb.raw_syms_for_key_in_layout(key_code, layout);
+
+                        // Match the xkb_key_get_one_sym() logic.
+                        if raw_syms.len() == 1 {
+                            Some(raw_syms[0])
+                        } else {
+                            None
+                        }
+                    };
+
+                    let raw = raw_sym(layout);
+
+                    // We include numbers and symbols too to have more binds working on us,ru and
+                    // avoid some surprising behavior.
+                    let is_ascii = |keysym: Keysym| {
+                        keysym.key_char().is_some_and(|key| key.is_ascii_graphic())
+                    };
+
+                    let mut raw_ascii = None;
+
+                    // Only check if raw is ASCII and not modified, so that e.g. pressing Shift
+                    // does not change the fallback behavior on layouts where raw isn't ASCII but
+                    // the shifted key is.
+                    if !raw.is_some_and(is_ascii) {
+                        // Haven't seen a latin keysym yet; try to find.
+                        for layout in xkb.layouts().filter(|l| *l != layout) {
+                            if let Some(raw) = raw_sym(layout) {
+                                if is_ascii(raw) {
+                                    raw_ascii = Some(raw);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    (modified, raw, raw_ascii)
+                };
+
+                // Avoid unnecessary lookups if raw is the same as modified.
+                let raw = raw.filter(|k| Some(*k) != modified);
+
+                // We don't differentiate between raw and raw_ascii when it comes to bind handling.
+                let raw = match (raw, raw_ascii) {
+                    (None, None) => &[][..],
+                    (None, Some(b)) => &[b][..],
+                    (Some(a), None) => &[a][..],
+                    (Some(a), Some(b)) => &[a, b][..],
+                };
 
                 // After updating XKB state from accessibility-grabbed keys, return right away and
                 // don't handle them.
@@ -4749,11 +4815,11 @@ fn should_intercept_key<'a>(
     suppressed_keys: &mut HashSet<Keycode>,
     pending_release_binds: &mut HashMap<Keycode, Bind>,
     cooldown_timers: &HashMap<Key, RegistrationToken>,
-    bindings: impl IntoIterator<Item = &'a Bind>,
+    bindings: impl Iterator<Item = &'a Bind> + Clone,
     mod_key: ModKey,
     key_code: Keycode,
     modified: Option<Keysym>,
-    raw: Option<Keysym>,
+    raw: &[Keysym],
     pressed: bool,
     mods: Modifiers,
     disable_power_key_handling: bool,
@@ -4819,11 +4885,11 @@ fn should_intercept_key<'a>(
     }
 }
 
-fn find_bind<'a, I: IntoIterator<Item = &'a Bind>>(
+fn find_bind<'a, I: Iterator<Item = &'a Bind> + Clone>(
     bindings: I,
     mod_key: ModKey,
     modified: Option<Keysym>,
-    raw: Option<Keysym>,
+    raw: &[Keysym],
     mods: Modifiers,
     disable_power_key_handling: bool,
 ) -> Option<Bind> {
@@ -4867,9 +4933,8 @@ fn find_bind<'a, I: IntoIterator<Item = &'a Bind>>(
 
     // A modifier key can trigger binds bound as the compositor mod key (`Mod`), by its own keysym
     // (like `Alt_L`), or as the modifier itself (like `Alt`). Return the first bind that matches.
-    let find = |bindings: I, key: Keysym| {
+    let find = |mut bindings: I, key: Keysym| {
         bindings
-            .into_iter()
             .find(|bind| {
                 let bind_trigger = bind.key.trigger;
                 // Check that the bind modifiers match the held modifiers.
@@ -4918,8 +4983,8 @@ fn find_bind<'a, I: IntoIterator<Item = &'a Bind>>(
             .cloned()
     };
 
-    let key = raw?;
-    find(bindings, key)
+    let mut keys = modified.into_iter().chain(raw.iter().copied());
+    keys.find_map(|key| find(bindings.clone(), key))
 }
 
 fn trigger_matches_keysym(trigger: Trigger, key: Keysym, mod_key: ModKey) -> bool {
@@ -5639,7 +5704,7 @@ fn make_binds_iter<'a>(
     screenshot_ui: &'a ScreenshotUi,
     mru: &'a mut WindowMruUi,
     mods: Modifiers,
-) -> impl Iterator<Item = &'a Bind> {
+) -> impl Iterator<Item = &'a Bind> + Clone {
     let general_binds = config.binds.0.iter();
 
     // Figure out the binds to use depending on whether the MRU is enabled and/or open.
@@ -5743,11 +5808,11 @@ mod tests {
             &mut state.suppressed_keys,
             &mut state.pending_release_binds,
             &state.cooldown_timers,
-            &bindings.0,
+            bindings.0.iter(),
             ModKey::Super,
             CLOSE_KEY_CODE,
             Some(CLOSE_KEYSYM),
-            Some(CLOSE_KEYSYM),
+            &[],
             pressed,
             mods,
             state.disable_power_key_handling,
