@@ -742,6 +742,119 @@ fn layouts() {
         surface key released: 19
     ");
 
+    // ASCII fallback should include non-alphabetic characters so more binds keep working on us,ru.
+    let c = r#"
+    input {
+        keyboard {
+            xkb {
+                layout "ru,us"
+            }
+        }
+    }
+
+    binds {
+        Comma { close-window; }
+        BracketLeft { close-window; }
+    }
+    "#;
+    assert_snapshot!(run(c, "+AD11 -AD11 +AB08 -AB08"),
+    @"
+    +AD11  34 XK_Cyrillic_ha
+        niri test-action
+    -AD11  34 XK_Cyrillic_ha
+    +AB08  59 XK_Cyrillic_be
+        niri test-action
+    -AB08  59 XK_Cyrillic_be
+    ");
+
+    // Non-alphabetic ASCII characters shouldn't fallback to other layouts to avoid surprises.
+    // Q is ' on US Dvorak.
+    let c = r#"
+    input {
+        keyboard {
+            xkb {
+                layout "us,us"
+                variant "dvorak,"
+                options "grp:lalt_toggle"
+            }
+        }
+    }
+
+    binds {
+        Q { close-window; }
+    }
+    "#;
+    assert_snapshot!(run(c, "+LatQ -LatQ +LALT +LALT +LatQ -LatQ"),
+    @"
+    +AD01  24 XK_apostrophe
+        surface key pressed: 16
+    -AD01  24 XK_apostrophe
+        surface key released: 16
+    +LALT  64 XK_ISO_Next_Group
+        surface key pressed: 56
+        surface modifiers: depressed=0, latched=0, locked=0, group=1
+    +LALT  64 XK_ISO_Next_Group
+    +AD01  24 XK_q
+        niri test-action
+    -AD01  24 XK_q
+    ");
+
+    // ASCII fallback shouldn't depend on holding modifiers like Shift so that binds with these
+    // modifiers can reliably be fallen back to.
+    //
+    // On il, the ; : key is hebrew_finalpe :, meaning that ; is not ASCII but Shift+; is.
+    // We don't want the fallback to differ in this case.
+    let c = r#"
+    input {
+        keyboard {
+            xkb {
+                layout "il,us"
+            }
+        }
+    }
+
+    binds {
+        Semicolon { close-window; }
+        Shift+Semicolon { close-window; }
+    }
+    "#;
+    assert_snapshot!(run(c, "+AC10 -AC10 +LFSH +AC10 -AC10"),
+    @"
+    +AC10  47 XK_hebrew_finalpe
+        niri test-action
+    -AC10  47 XK_hebrew_finalpe
+    +LFSH  50 XK_Shift_L
+        surface key pressed: 42
+        surface modifiers: depressed=1, latched=0, locked=0, group=0
+    +AC10  47 XK_colon
+        niri test-action
+    -AC10  47 XK_colon
+    ");
+
+    // ASCII fallback should work on dead keys too (currently doesn't).
+    //
+    // Greek has a dead key on ;.
+    let c = r#"
+    input {
+        keyboard {
+            xkb {
+                layout "gr,us"
+            }
+        }
+    }
+
+    binds {
+        Semicolon { close-window; }
+    }
+    "#;
+    assert_snapshot!(run(c, "+AC10 -AC10"),
+    @"
+    +AC10  47 XK_dead_acute
+        surface key pressed: 39
+    -AC10  47 XK_dead_acute
+        surface key released: 39
+    ");
+
     // We require the modifiers to match the bind for it to trigger.
     // So Ctrl-? cannot be triggered on us-qwerty since entering ? necessarily requires a Shift.
     // If you spell out Shift like Super-Shift-?, it should be triggerable (but currently isn't).
@@ -788,6 +901,46 @@ fn layouts() {
         surface key pressed: 53
     -AB10  61 XK_question
         surface key released: 53
+    ");
+
+    // The BÉPO example from the docs. The key should be bindable by both « and < trigger.
+    // But you have to spell out Mod5 since niri requires all modifiers be spelled.
+    let c = r#"
+    input {
+        keyboard {
+            xkb {
+                layout "fr"
+                variant "bepo"
+            }
+        }
+    }
+
+    binds {
+        Super+Mod5+guillemotleft { close-window; }
+        Ctrl+Mod5+less { close-window; }
+    }
+    "#;
+    assert_snapshot!(run(c, "+LWIN +RALT +AE02"),
+    @"
+    +LWIN 133 XK_Super_L
+        surface key pressed: 125
+        surface modifiers: depressed=64, latched=0, locked=0, group=0
+    +RALT 108 XK_ISO_Level3_Shift
+        surface key pressed: 100
+        surface modifiers: depressed=192, latched=0, locked=0, group=0
+    +AE02  11 XK_less
+        niri test-action
+    ");
+    assert_snapshot!(run(c, "+LCTL +RALT +AE02"),
+    @"
+    +LCTL  37 XK_Control_L
+        surface key pressed: 29
+        surface modifiers: depressed=4, latched=0, locked=0, group=0
+    +RALT 108 XK_ISO_Level3_Shift
+        surface key pressed: 100
+        surface modifiers: depressed=132, latched=0, locked=0, group=0
+    +AE02  11 XK_less
+        surface key pressed: 3
     ");
 }
 
