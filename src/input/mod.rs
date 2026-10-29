@@ -4828,7 +4828,7 @@ fn should_intercept_key<'a>(
         return released_key_intercept_result(suppressed_keys, pending_release_binds, key_code);
     }
 
-    let final_bind = find_bind(
+    let bind = find_bind(
         bindings,
         mod_key,
         modified,
@@ -4836,48 +4836,39 @@ fn should_intercept_key<'a>(
         mods,
         disable_power_key_handling,
     );
+    // If we don't have a bind, forward the key.
+    let Some(bind) = bind else {
+        return ShouldInterceptResult::Forward;
+    };
 
-    match final_bind {
-        Some(bind) => {
-            if is_inhibiting_shortcuts && bind.allow_inhibiting {
-                ShouldInterceptResult::Forward
-            } else if bind.has_press() && is_bind_on_cooldown(&bind, cooldown_timers) {
-                // If on cooldown, do not run the press action, record a release action,
-                // or forward the press.
-                suppressed_keys.insert(key_code);
-                ShouldInterceptResult::InterceptOnly
-            } else if modified.is_some_and(is_keysym_modifier) {
-                if should_record_release_bind(&bind, is_locked, is_in_screenshot, cooldown_timers) {
-                    pending_release_binds.insert(key_code, bind.clone());
-                }
-                if bind.has_press() {
-                    suppressed_keys.insert(key_code);
-                    // A bind with a press action takes the key press. Applications will still learn
-                    // about the modifier state via `advertise_modifier_state()`.
-                    ShouldInterceptResult::InterceptAndHandle(bind)
-                } else {
-                    // This is to ensure that, if you have a modifier-triggered release bind like
-                    // Ctrl+Alt, We still forward the Ctrl and Alt presses to the application
-                    // to use for its own shortcuts.
-                    ShouldInterceptResult::Forward
-                }
-            } else {
-                if should_record_release_bind(&bind, is_locked, is_in_screenshot, cooldown_timers) {
-                    pending_release_binds.insert(key_code, bind.clone());
-                }
-                suppressed_keys.insert(key_code);
-                if bind.has_press() {
-                    ShouldInterceptResult::InterceptAndHandle(bind)
-                } else {
-                    // Release-only bind: intercept the key press so that it doesn't reach the
-                    // client, and remember to trigger the release action when the key is
-                    // released.
-                    ShouldInterceptResult::InterceptOnly
-                }
-            }
-        }
-        None => ShouldInterceptResult::Forward,
+    // When inhibiting shortcuts, forward the key.
+    if is_inhibiting_shortcuts && bind.allow_inhibiting {
+        return ShouldInterceptResult::Forward;
     }
+
+    // By default we intercept the key which hides both the press and release from clients.
+    // Clients still learn about the modifier state via `advertise_modifier_state()`.
+    //
+    // Modifier-only release-only binds are not intercepted by default so that
+    // bindings like `Ctrl+Alt` do not break application shortcuts.
+    let forward = modified.is_some_and(is_keysym_modifier) && !bind.has_press();
+    if !forward {
+        suppressed_keys.insert(key_code);
+    }
+
+    if should_record_release_bind(&bind, is_locked, is_in_screenshot, cooldown_timers) {
+        pending_release_binds.insert(key_code, bind.clone());
+    }
+
+    // We need to check cooldown here matching the check in should_record_release_bind() above.
+    // Otherwise, a bind on cooldown would start repeat, which would then trigger its press action
+    // without recording the corresponding release action.
+    //
+    // Another (arguably more correct) way would be to ensure a pending release bind when running
+    // key repeat. If that's implemented, this condition can be simplified.
+    let run_press_action = bind.has_press() && !is_bind_on_cooldown(&bind, cooldown_timers);
+
+    bind_intercept_result(run_press_action.then_some(bind), forward)
 }
 
 fn find_bind<'a, I: Iterator<Item = &'a Bind> + Clone>(
