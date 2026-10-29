@@ -1419,6 +1419,76 @@ fn generic_modifier_press_release() {
 }
 
 #[test]
+fn pass_through() {
+    // A normal press-only bind runs its action and forwards the key.
+    let c = "
+    binds {
+        Mod+Q pass-through=true { close-window; }
+    }
+    ";
+
+    assert_snapshot!(run(c, "+LWIN +LatQ -LatQ -LWIN"), @"
+    +LWIN 133 XK_Super_L
+        surface key pressed: 125
+        surface modifiers: depressed=64, latched=0, locked=0, group=0
+    +AD01  24 XK_q
+        niri test-action
+        surface key pressed: 16
+    -AD01  24 XK_q
+        surface key released: 16
+    -LWIN 133 XK_Super_L
+        surface key released: 125
+        surface modifiers: depressed=0, latched=0, locked=0, group=0
+    ");
+
+    // A modifier-only press-and-release bind runs both actions and forwards the key.
+    let c = "
+    binds {
+        Mod pass-through=true {
+            press { close-window; }
+            release { center-column; }
+        }
+    }
+    ";
+
+    assert_snapshot!(run(c, "+LWIN -LWIN"), @"
+    +LWIN 133 XK_Super_L
+        niri test-action
+        surface key pressed: 125
+        surface modifiers: depressed=64, latched=0, locked=0, group=0
+    -LWIN 133 XK_Super_L
+        niri test-action
+        surface key released: 125
+        surface modifiers: depressed=0, latched=0, locked=0, group=0
+    ");
+
+    // A bind on cooldown does not run its action, but still forwards the key.
+    let c = "
+    binds {
+        Mod+Q pass-through=true cooldown-ms=1000 { close-window; }
+    }
+    ";
+
+    assert_snapshot!(run(c, "+LWIN +LatQ -LatQ +LatQ -LatQ -LWIN"), @"
+    +LWIN 133 XK_Super_L
+        surface key pressed: 125
+        surface modifiers: depressed=64, latched=0, locked=0, group=0
+    +AD01  24 XK_q
+        niri test-action
+        surface key pressed: 16
+    -AD01  24 XK_q
+        surface key released: 16
+    +AD01  24 XK_q
+        surface key pressed: 16
+    -AD01  24 XK_q
+        surface key released: 16
+    -LWIN 133 XK_Super_L
+        surface key released: 125
+        surface modifiers: depressed=0, latched=0, locked=0, group=0
+    ");
+}
+
+#[test]
 fn mod_key_press_and_release_bind() {
     let c = "
     binds {

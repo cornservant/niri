@@ -24,6 +24,7 @@ pub struct Bind {
     pub key: Key,
     pub action: BoundAction,
     pub repeat: bool,
+    pub pass_through: Option<bool>,
     pub cooldown: Option<Duration>,
     pub allow_when_locked: bool,
     pub allow_inhibiting: bool,
@@ -971,6 +972,7 @@ where
 
         let mut repeat = None;
         let mut repeat_node = None;
+        let mut pass_through = None;
         let mut cooldown = None;
         let mut allow_when_locked = false;
         let mut allow_when_locked_node = None;
@@ -982,6 +984,24 @@ where
                 "repeat" => {
                     repeat = Some(knuffel::traits::DecodeScalar::decode(val, ctx)?);
                     repeat_node = Some(name);
+                }
+                "pass-through" => {
+                    pass_through = Some(knuffel::traits::DecodeScalar::decode(val, ctx)?);
+
+                    // Supporting this for mouse binds would be a bit weird. Mouse binds trigger
+                    // compositor gestures, so should pass-through also trigger the corresponding
+                    // gesture, on top of the bind? If yes, then there are some conflicts, e.g. with
+                    // toggle-overview and the Mod+LMB move grab or LMB press-to-close-overview.
+                    //
+                    // All in all, this needs design, and I'm not sure why you'd want pass-through
+                    // mouse binds anyway, so, let's do keyboard only for now.
+                    if !key.trigger.is_keyboard() {
+                        ctx.emit_error(DecodeError::unexpected(
+                            name,
+                            "property",
+                            "pass-through is only supported for keyboard binds",
+                        ));
+                    }
                 }
                 "cooldown-ms" => {
                     cooldown = Some(Duration::from_millis(
@@ -1015,6 +1035,7 @@ where
             key,
             action: BoundAction::Press(Action::Spawn(vec![])),
             repeat: true,
+            pass_through: None,
             cooldown: None,
             allow_when_locked: false,
             allow_inhibiting: true,
@@ -1192,6 +1213,7 @@ where
             key,
             action,
             repeat,
+            pass_through,
             cooldown,
             allow_when_locked,
             allow_inhibiting,

@@ -3428,6 +3428,7 @@ impl State {
                                 },
                                 action: BoundAction::Press(Action::FocusColumnLeftUnderMouse),
                                 repeat: true,
+                                pass_through: None,
                                 cooldown: None,
                                 allow_when_locked: false,
                                 allow_inhibiting: false,
@@ -3440,6 +3441,7 @@ impl State {
                                 },
                                 action: BoundAction::Press(Action::FocusColumnRightUnderMouse),
                                 repeat: true,
+                                pass_through: None,
                                 cooldown: None,
                                 allow_when_locked: false,
                                 allow_inhibiting: false,
@@ -3488,6 +3490,7 @@ impl State {
                             },
                             action: BoundAction::Press(Action::FocusWorkspaceUpUnderMouse),
                             repeat: true,
+                            pass_through: None,
                             cooldown: Some(Duration::from_millis(50)),
                             allow_when_locked: false,
                             allow_inhibiting: false,
@@ -3500,6 +3503,7 @@ impl State {
                             },
                             action: BoundAction::Press(Action::FocusWorkspaceDownUnderMouse),
                             repeat: true,
+                            pass_through: None,
                             cooldown: Some(Duration::from_millis(50)),
                             allow_when_locked: false,
                             allow_inhibiting: false,
@@ -3514,6 +3518,7 @@ impl State {
                             },
                             action: BoundAction::Press(Action::FocusColumnLeftUnderMouse),
                             repeat: true,
+                            pass_through: None,
                             cooldown: Some(Duration::from_millis(50)),
                             allow_when_locked: false,
                             allow_inhibiting: false,
@@ -3526,6 +3531,7 @@ impl State {
                             },
                             action: BoundAction::Press(Action::FocusColumnRightUnderMouse),
                             repeat: true,
+                            pass_through: None,
                             cooldown: Some(Duration::from_millis(50)),
                             allow_when_locked: false,
                             allow_inhibiting: false,
@@ -4803,6 +4809,9 @@ fn is_bind_on_cooldown(bind: &Bind, cooldown_timers: &HashMap<Key, RegistrationT
 /// A release-only bind is cancelled by other input before this runs; see
 /// `cancel_interrupted_release_binds()`. A bind with a press action always runs its release action.
 ///
+/// A bind with `pass-through` still runs its actions, but also forwards the presses and releases to
+/// clients.
+///
 /// A bind whose press action is rate-limited by its cooldown is skipped entirely:
 /// No action runs, and no release action is recorded.
 #[allow(clippy::too_many_arguments)]
@@ -4851,7 +4860,9 @@ fn should_intercept_key<'a>(
     //
     // Modifier-only release-only binds are not intercepted by default so that
     // bindings like `Ctrl+Alt` do not break application shortcuts.
-    let forward = modified.is_some_and(is_keysym_modifier) && !bind.has_press();
+    let forward = bind
+        .pass_through
+        .unwrap_or(modified.is_some_and(is_keysym_modifier) && !bind.has_press());
     if !forward {
         suppressed_keys.insert(key_code);
     }
@@ -4905,6 +4916,7 @@ fn find_bind<'a, I: Iterator<Item = &'a Bind> + Clone>(
             // Repeating VT switches and power off doesn't make sense (and it actually happens on
             // FreeBSD where it doesn't get released and ends up broken).
             repeat: false,
+            pass_through: None,
             cooldown: None,
             allow_when_locked: false,
             // In a worst-case scenario, the user has no way to unlock the compositor and a
@@ -5657,6 +5669,7 @@ fn hardcoded_overview_binds<'a>() -> impl Iterator<Item = &'a Bind> + Clone {
             },
             action: BoundAction::Press(action),
             repeat,
+            pass_through: None,
             cooldown: None,
             allow_when_locked: false,
             allow_inhibiting: false,
@@ -5749,6 +5762,7 @@ mod tests {
             key: Key { trigger, modifiers },
             action,
             repeat: false,
+            pass_through: None,
             cooldown: None,
             allow_when_locked: false,
             allow_inhibiting: true,
