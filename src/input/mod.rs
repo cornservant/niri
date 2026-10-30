@@ -721,7 +721,12 @@ impl State {
                             return ShouldInterceptResult::InterceptAndHandle(bind);
                         }
                     }
+                }
 
+                if matches!(
+                    res,
+                    ShouldInterceptResult::Forward | ShouldInterceptResult::ForwardAndHandle(_)
+                ) {
                     // Interaction with the active window, immediately update the active window's
                     // focus timestamp without waiting for a possible pending MRU lock-in delay.
                     this.niri.mru_apply_keyboard_commit();
