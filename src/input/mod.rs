@@ -690,6 +690,7 @@ impl State {
                         &config,
                         &this.niri.screenshot_ui,
                         &mut this.niri.window_mru_ui,
+                        this.niri.keyboard_focus.is_overview(),
                         modifiers,
                     );
 
@@ -710,18 +711,6 @@ impl State {
                         is_in_screenshot,
                     )
                 };
-
-                if matches!(res, ShouldInterceptResult::Forward) {
-                    // If we didn't find any bind, try other hardcoded keys.
-                    if this.niri.keyboard_focus.is_overview() && pressed {
-                        if let Some(bind) =
-                            modified.and_then(|key| hardcoded_overview_bind(key, modifiers))
-                        {
-                            this.niri.suppressed_keys.insert(key_code);
-                            return ShouldInterceptResult::InterceptAndHandle(bind);
-                        }
-                    }
-                }
 
                 if matches!(
                     res,
@@ -3019,6 +3008,7 @@ impl State {
             &config,
             &self.niri.screenshot_ui,
             &mut self.niri.window_mru_ui,
+            self.niri.keyboard_focus.is_overview(),
             modifiers,
         );
 
@@ -5273,40 +5263,6 @@ fn bind_allowed_during_screenshot(bind: &Bind, pressed: bool) -> bool {
     }
 }
 
-fn hardcoded_overview_bind(key: Keysym, mods: Modifiers) -> Option<Bind> {
-    if !mods.is_empty() {
-        return None;
-    }
-
-    let mut repeat = true;
-    let action = match key {
-        Keysym::Escape | Keysym::Return => {
-            repeat = false;
-            Action::ToggleOverview
-        }
-        Keysym::Left => Action::FocusColumnLeft,
-        Keysym::Right => Action::FocusColumnRight,
-        Keysym::Up => Action::FocusWindowOrWorkspaceUp,
-        Keysym::Down => Action::FocusWindowOrWorkspaceDown,
-        _ => {
-            return None;
-        }
-    };
-
-    Some(Bind {
-        key: Key {
-            trigger: Trigger::Keysym(key),
-            modifiers: Modifiers::empty(),
-        },
-        action: BoundAction::Press(action),
-        repeat,
-        cooldown: None,
-        allow_when_locked: false,
-        allow_inhibiting: false,
-        hotkey_overlay_title: None,
-    })
-}
-
 pub fn apply_libinput_settings(
     config: &niri_config::Input,
     device: &mut input::Device,
@@ -5701,6 +5657,34 @@ fn grab_allows_hot_corner(grab: &(dyn PointerGrab<State> + 'static)) -> bool {
     true
 }
 
+fn hardcoded_overview_binds<'a>() -> impl Iterator<Item = &'a Bind> + Clone {
+    const fn bind(key: Keysym, action: Action, repeat: bool) -> Bind {
+        Bind {
+            key: Key {
+                trigger: Trigger::Keysym(key),
+                modifiers: Modifiers::empty(),
+            },
+            action: BoundAction::Press(action),
+            repeat,
+            cooldown: None,
+            allow_when_locked: false,
+            allow_inhibiting: false,
+            hotkey_overlay_title: None,
+        }
+    }
+
+    const BINDS: &[Bind] = &[
+        bind(Keysym::Escape, Action::ToggleOverview, false),
+        bind(Keysym::Return, Action::ToggleOverview, false),
+        bind(Keysym::Left, Action::FocusColumnLeft, true),
+        bind(Keysym::Right, Action::FocusColumnRight, true),
+        bind(Keysym::Up, Action::FocusWindowOrWorkspaceUp, true),
+        bind(Keysym::Down, Action::FocusWindowOrWorkspaceDown, true),
+    ];
+
+    BINDS.iter()
+}
+
 /// Returns an iterator over bindings.
 ///
 /// Includes dynamically populated bindings like the MRU UI.
@@ -5708,6 +5692,7 @@ fn make_binds_iter<'a>(
     config: &'a Config,
     screenshot_ui: &'a ScreenshotUi,
     mru: &'a mut WindowMruUi,
+    overview_focused: bool,
     mods: Modifiers,
 ) -> impl Iterator<Item = &'a Bind> + Clone {
     let general_binds = config.binds.0.iter();
@@ -5726,11 +5711,17 @@ fn make_binds_iter<'a>(
     // Screenshot UI binds already disable themselves when it's closed.
     let screenshot_binds = screenshot_ui.binds();
 
+    let overview_binds = overview_focused
+        .then(hardcoded_overview_binds)
+        .into_iter()
+        .flatten();
+
     // The precedence is screenshot UI, then general, then MRU binds.
     screenshot_binds
         .chain(general_binds)
         .chain(mru_binds)
         .chain(mru_open_binds)
+        .chain(overview_binds)
 }
 
 #[cfg(test)]
