@@ -22,6 +22,7 @@
           seatd,
           libxkbcommon,
           libgbm,
+          librsvg,
           pango,
           pipewire,
           pkg-config,
@@ -81,6 +82,7 @@
             libinput
             seatd
             libxkbcommon
+            librsvg
             libgbm
             pango
             wayland
