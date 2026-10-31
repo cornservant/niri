@@ -149,6 +149,20 @@ impl Trigger {
             Trigger::Keysym(_) | Trigger::CompositorMod | Trigger::Modifier(_)
         )
     }
+
+    pub fn is_scroll(self) -> bool {
+        matches!(
+            self,
+            Trigger::WheelScrollDown
+                | Trigger::WheelScrollUp
+                | Trigger::WheelScrollLeft
+                | Trigger::WheelScrollRight
+                | Trigger::TouchpadScrollDown
+                | Trigger::TouchpadScrollUp
+                | Trigger::TouchpadScrollLeft
+                | Trigger::TouchpadScrollRight
+        )
+    }
 }
 
 impl Key {
@@ -1132,19 +1146,7 @@ where
 
         let press_action = press_action.or(direct_action);
 
-        if release_action.is_some()
-            && matches!(
-                key.trigger,
-                Trigger::WheelScrollDown
-                    | Trigger::WheelScrollUp
-                    | Trigger::WheelScrollLeft
-                    | Trigger::WheelScrollRight
-                    | Trigger::TouchpadScrollDown
-                    | Trigger::TouchpadScrollUp
-                    | Trigger::TouchpadScrollLeft
-                    | Trigger::TouchpadScrollRight
-            )
-        {
+        if release_action.is_some() && key.trigger.is_scroll() {
             ctx.emit_error(DecodeError::unexpected(
                 node,
                 "bind",
