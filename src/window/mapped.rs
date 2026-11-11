@@ -607,6 +607,10 @@ impl Mapped {
         self.is_urgent
     }
 
+    pub fn no_throttle(&self) -> bool {
+        self.rules.no_throttle.unwrap_or(false)
+    }
+
     /// Returns the physical bbox needed to fit a screenshot of this window.
     pub fn capture_bbox(&self, scale: Scale<f64>) -> Rectangle<i32, Physical> {
         self.window.bbox_with_popups().to_physical_precise_up(scale)

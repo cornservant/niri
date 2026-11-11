@@ -2409,6 +2409,7 @@ mod tests {
                         ),
                     ),
                     tiled_state: None,
+                    no_throttle: None,
                     background_effect: BackgroundEffectRule {
                         xray: None,
                         blur: None,

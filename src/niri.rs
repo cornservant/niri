@@ -5588,7 +5588,7 @@ impl Niri {
         let frame_callback_time = get_monotonic_time();
 
         for mapped in self.layout.windows_for_output_mut(output) {
-            if mapped.is_window_cast_target() {
+            if mapped.is_window_cast_target() || mapped.no_throttle() {
                 ignore_primary_output.set(true);
             }
 
