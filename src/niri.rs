@@ -642,7 +642,7 @@ struct SurfaceFrameThrottlingState {
 }
 
 pub fn setup_throttling_state_for_mapped(mapped: &Mapped) {
-    let no_throttle = mapped.is_window_cast_target();
+    let no_throttle = mapped.is_window_cast_target() || mapped.no_throttle();
 
     with_states(mapped.toplevel().wl_surface(), move |states| {
         let frame_throttling_state = states
