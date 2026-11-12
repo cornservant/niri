@@ -18,8 +18,8 @@ use niri_config::input::XkbFile;
 use niri_config::output::MaxBpc;
 use niri_config::window_rule::VrrRule;
 use niri_config::{
-    Bind, Config, FloatOrInt, Key, Modifiers, OutputName, TrackLayout, WarpMouseToFocusMode,
-    WorkspaceReference, Xkb,
+    Bind, Config, FloatOrInt, Key, Modifiers, OutputName, OutputReference, TrackLayout,
+    WarpMouseToFocusMode, WorkspaceReference, Xkb,
 };
 use smithay::backend::allocator::Fourcc;
 use smithay::backend::input::{InputTime, Keycode};
@@ -154,6 +154,7 @@ use crate::input::{
 use crate::ipc::server::IpcServer;
 use crate::layer::mapped::LayerSurfaceRenderElement;
 use crate::layer::MappedLayer;
+use crate::layout::monitor::Monitor;
 use crate::layout::tile::TileRenderElement;
 use crate::layout::workspace::{Workspace, WorkspaceId};
 use crate::layout::{
@@ -273,6 +274,9 @@ pub struct Niri {
 
     // Dmabuf readiness pre-commit hook for a surface.
     pub dmabuf_pre_commit_hook: HashMap<WlSurface, HookId>,
+
+    // Set on any surface commit, taken in refresh_layout() to gate the per-window output_update.
+    pub surface_committed: bool,
 
     /// Clients to notify about their blockers being cleared.
     pub blocker_cleared_tx: Sender<Client>,
@@ -638,6 +642,18 @@ pub enum LockRenderState {
 struct SurfaceFrameThrottlingState {
     /// Output and sequence that the frame callback was last sent at.
     last_sent_at: RefCell<Option<(Output, u32)>>,
+    no_throttle: RefCell<bool>,
+}
+
+pub fn setup_throttling_state_for_mapped(mapped: &Mapped) {
+    let no_throttle = mapped.is_window_cast_target() || mapped.no_throttle();
+
+    with_states(mapped.toplevel().wl_surface(), move |states| {
+        let frame_throttling_state = states
+            .data_map
+            .get_or_insert(SurfaceFrameThrottlingState::default);
+        *frame_throttling_state.no_throttle.borrow_mut() = no_throttle;
+    });
 }
 
 pub enum CenterCoords {
@@ -728,6 +744,7 @@ impl Default for SurfaceFrameThrottlingState {
     fn default() -> Self {
         Self {
             last_sent_at: RefCell::new(None),
+            no_throttle: RefCell::new(false),
         }
     }
 }
@@ -1755,7 +1772,7 @@ impl State {
         }
 
         // Create new named workspaces.
-        for ws_config in &config.workspaces {
+        for ws_config in config.workspaces.iter().rev() {
             self.niri.layout.ensure_named_workspace(ws_config);
         }
 
@@ -2020,7 +2037,7 @@ impl State {
         for output in self.niri.global_space.outputs() {
             let name = output.user_data().get::<OutputName>().unwrap();
             let full_config = self.niri.config.borrow_mut();
-            let config = full_config.outputs.find(name);
+            let config = full_config.outputs.find_last(name);
 
             let scale = config
                 .and_then(|c| c.scale)
@@ -2773,8 +2790,23 @@ impl Niri {
         seat.add_pointer();
 
         let cursor_shape_manager_state = CursorShapeManagerState::new::<State>(&display_handle);
-        let cursor_manager =
-            CursorManager::new(&config_.cursor.xcursor_theme, config_.cursor.xcursor_size);
+        let (cursor_tx, cursor_rx) = calloop::channel::channel();
+        let cursor_manager = CursorManager::new(
+            &config_.cursor.xcursor_theme,
+            config_.cursor.xcursor_size,
+            cursor_tx,
+        );
+        event_loop
+            .insert_source(cursor_rx, |event, _, state: &mut State| {
+                if let calloop::channel::Event::Msg(response) = event {
+                    if state.niri.cursor_manager.apply_rasterized(response) {
+                        state.niri.cursor_texture_cache.clear();
+                        state.niri.queue_redraw_all();
+                    }
+                }
+            })
+            .unwrap();
+        cursor_manager.get_default_cursor(1);
 
         let mod_key = backend.mod_key(&config.borrow());
         let mods_with_mouse_binds = mods_with_mouse_binds(mod_key, &config_.binds);
@@ -2888,6 +2920,7 @@ impl Niri {
             mapped_layer_surfaces: HashMap::new(),
             root_surface: HashMap::new(),
             dmabuf_pre_commit_hook: HashMap::new(),
+            surface_committed: false,
             blocker_cleared_tx,
             blocker_cleared_rx,
             monitors_active: true,
@@ -4460,6 +4493,10 @@ impl Niri {
         };
 
         self.layout.refresh(layout_is_active);
+
+        if mem::take(&mut self.surface_committed) {
+            self.layout.with_windows_mut(|mapped, _| mapped.refresh());
+        }
     }
 
     pub fn refresh_idle_inhibit(&mut self) {
@@ -5511,18 +5548,25 @@ impl Niri {
         let sequence = state.frame_callback_sequence;
 
         let should_send = |surface: &WlSurface, states: &SurfaceData| {
+            let frame_throttling_state = states
+                .data_map
+                .get_or_insert(SurfaceFrameThrottlingState::default);
+
             // Do the standard primary scanout output check. For pointer surfaces it deduplicates
             // the frame callbacks across potentially multiple outputs, and for regular windows and
             // layer-shell surfaces it avoids sending frame callbacks to invisible surfaces.
             let current_primary_output = surface_primary_scanout_output(surface, states);
-            if current_primary_output.as_ref() != Some(output) {
+            if current_primary_output.is_some() && current_primary_output.as_ref() != Some(output) {
+                // Deduplicate frame callback.
+                return None;
+            }
+            let no_throttle = frame_throttling_state.no_throttle.borrow_mut();
+            if current_primary_output.is_none() && !*no_throttle {
+                // Skip invisible surface.
                 return None;
             }
 
             // Next, check the throttling status.
-            let frame_throttling_state = states
-                .data_map
-                .get_or_insert(SurfaceFrameThrottlingState::default);
             let mut last_sent_at = frame_throttling_state.last_sent_at.borrow_mut();
 
             let mut send = true;
@@ -5546,6 +5590,7 @@ impl Niri {
         let frame_callback_time = get_monotonic_time();
 
         for mapped in self.layout.windows_for_output_mut(output) {
+            setup_throttling_state_for_mapped(mapped);
             mapped.send_frame(
                 output,
                 frame_callback_time,
@@ -7490,6 +7535,43 @@ impl Niri {
     pub fn queue_redraw_mru_output(&mut self) {
         if let Some(output) = self.window_mru_ui.output().cloned() {
             self.queue_redraw(&output);
+        }
+    }
+
+    pub fn switch_workspace_down(&mut self, output_ref: OutputReference) {
+        if let Some(monitor) = self.monitor_mut(output_ref) {
+            monitor.switch_workspace_down()
+        }
+    }
+
+    pub fn switch_workspace_up(&mut self, output_ref: OutputReference) {
+        if let Some(monitor) = self.monitor_mut(output_ref) {
+            monitor.switch_workspace_up()
+        }
+    }
+
+    pub fn move_workspace_down(&mut self, output_ref: OutputReference) {
+        if let Some(monitor) = self.monitor_mut(output_ref) {
+            monitor.move_workspace_down()
+        }
+    }
+
+    pub fn move_workspace_up(&mut self, output_ref: OutputReference) {
+        if let Some(monitor) = self.monitor_mut(output_ref) {
+            monitor.move_workspace_up()
+        }
+    }
+
+    pub fn monitor_mut(&mut self, output_ref: OutputReference) -> Option<&mut Monitor<Mapped>> {
+        match output_ref {
+            OutputReference::Active => self.layout.active_monitor(),
+            OutputReference::UnderCursor => self
+                .output_under_cursor()
+                .and_then(|output| self.layout.monitor_for_output_mut(&output)),
+            OutputReference::OutputName(name) => self
+                .output_by_name_match(&name)
+                .cloned()
+                .and_then(|output| self.layout.monitor_for_output_mut(&output)),
         }
     }
 }

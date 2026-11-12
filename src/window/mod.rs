@@ -111,6 +111,9 @@ pub struct ResolvedWindowRules {
     /// Whether to bob this window up and down.
     pub baba_is_float: Option<bool>,
 
+    /// Whether this floating window should render above fullscreen scrolling windows.
+    pub float_above_fullscreen: Option<bool>,
+
     /// Whether to block out this window from certain render targets.
     pub block_out_from: Option<BlockOutFrom>,
 
@@ -125,6 +128,9 @@ pub struct ResolvedWindowRules {
 
     /// Override whether to set the Tiled xdg-toplevel state on the window.
     pub tiled_state: Option<bool>,
+
+    /// Override whether the frame rate should be throttled off-screen.
+    pub no_throttle: Option<bool>,
 
     /// Background effect configuration.
     pub background_effect: BackgroundEffect,
@@ -300,6 +306,9 @@ impl ResolvedWindowRules {
                 if let Some(x) = rule.baba_is_float {
                     resolved.baba_is_float = Some(x);
                 }
+                if let Some(x) = rule.float_above_fullscreen {
+                    resolved.float_above_fullscreen = Some(x);
+                }
                 if let Some(x) = rule.block_out_from {
                     resolved.block_out_from = Some(x);
                 }
@@ -314,6 +323,9 @@ impl ResolvedWindowRules {
                 }
                 if let Some(x) = rule.tiled_state {
                     resolved.tiled_state = Some(x);
+                }
+                if let Some(x) = rule.no_throttle {
+                    resolved.no_throttle = Some(x);
                 }
 
                 resolved
@@ -418,6 +430,15 @@ fn window_matches(window: WindowRef, role: &XdgToplevelSurfaceRoleAttributes, m:
             .states
             .contains(xdg_toplevel::State::Activated);
         if is_active != pending_activated {
+            return false;
+        }
+    }
+
+    if let Some(is_fullscreen) = m.is_fullscreen {
+        let pending_fullscreen = server_pending
+            .states
+            .contains(xdg_toplevel::State::Fullscreen);
+        if is_fullscreen != pending_fullscreen {
             return false;
         }
     }

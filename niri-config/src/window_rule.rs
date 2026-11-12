@@ -67,6 +67,8 @@ pub struct WindowRule {
     #[knuffel(child, unwrap(argument))]
     pub baba_is_float: Option<bool>,
     #[knuffel(child, unwrap(argument))]
+    pub float_above_fullscreen: Option<bool>,
+    #[knuffel(child, unwrap(argument))]
     pub block_out_from: Option<BlockOutFrom>,
     #[knuffel(child, unwrap(argument))]
     pub variable_refresh_rate: Option<VrrRule>,
@@ -80,6 +82,8 @@ pub struct WindowRule {
     pub pinch_sensitivity: Option<FloatOrInt<0, 100>>,
     #[knuffel(child, unwrap(argument))]
     pub tiled_state: Option<bool>,
+    #[knuffel(child, unwrap(argument))]
+    pub no_throttle: Option<bool>,
     #[knuffel(child, default)]
     pub background_effect: BackgroundEffectRule,
     #[knuffel(child, default)]
@@ -150,6 +154,8 @@ pub struct Match {
     pub is_window_cast_target: Option<bool>,
     #[knuffel(property)]
     pub is_urgent: Option<bool>,
+    #[knuffel(property)]
+    pub is_fullscreen: Option<bool>,
     #[knuffel(property)]
     pub at_startup: Option<bool>,
 }
