@@ -1679,11 +1679,7 @@ impl State {
                         }
                     }
 
-                    let activate = if focus {
-                        ActivateWindow::Smart
-                    } else {
-                        ActivateWindow::No
-                    };
+                    let activate = ActivateWindow::Smart;
 
                     if let Some(output) = output {
                         self.niri
@@ -2240,9 +2236,12 @@ impl State {
                             .active_output()
                             .is_some_and(|active| output == *active);
 
-                        self.niri
-                            .layout
-                            .move_to_output(Some(&window), &output, None, ActivateWindow::Smart);
+                        self.niri.layout.move_to_output(
+                            Some(&window),
+                            &output,
+                            None,
+                            ActivateWindow::Smart,
+                        );
 
                         if focus {
                             // If the active output changed (window was moved and focused).
