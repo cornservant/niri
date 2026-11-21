@@ -18,8 +18,8 @@ use niri_config::input::XkbFile;
 use niri_config::output::MaxBpc;
 use niri_config::window_rule::VrrRule;
 use niri_config::{
-    Bind, Config, FloatOrInt, Key, Modifiers, OutputName, TrackLayout, WarpMouseToFocusMode,
-    WorkspaceReference, Xkb,
+    Bind, Config, FloatOrInt, Key, Modifiers, OutputName, OutputReference, TrackLayout,
+    WarpMouseToFocusMode, WorkspaceReference, Xkb,
 };
 use smithay::backend::allocator::Fourcc;
 use smithay::backend::input::{InputTime, Keycode};
@@ -154,6 +154,7 @@ use crate::input::{
 use crate::ipc::server::IpcServer;
 use crate::layer::mapped::LayerSurfaceRenderElement;
 use crate::layer::MappedLayer;
+use crate::layout::monitor::Monitor;
 use crate::layout::tile::TileRenderElement;
 use crate::layout::workspace::{Workspace, WorkspaceId};
 use crate::layout::{
@@ -280,6 +281,9 @@ pub struct Niri {
 
     // Dmabuf readiness pre-commit hook for a surface.
     pub dmabuf_pre_commit_hook: HashMap<WlSurface, HookId>,
+
+    // Set on any surface commit, taken in refresh_layout() to gate the per-window output_update.
+    pub surface_committed: bool,
 
     /// Clients to notify about their blockers being cleared.
     pub blocker_cleared_tx: Sender<Client>,
@@ -1765,7 +1769,7 @@ impl State {
         }
 
         // Create new named workspaces.
-        for ws_config in &config.workspaces {
+        for ws_config in config.workspaces.iter().rev() {
             self.niri.layout.ensure_named_workspace(ws_config);
         }
 
@@ -2030,7 +2034,7 @@ impl State {
         for output in self.niri.global_space.outputs() {
             let name = output.user_data().get::<OutputName>().unwrap();
             let full_config = self.niri.config.borrow_mut();
-            let config = full_config.outputs.find(name);
+            let config = full_config.outputs.find_last(name);
 
             let scale = config
                 .and_then(|c| c.scale)
@@ -2797,8 +2801,23 @@ impl Niri {
         seat.add_pointer();
 
         let cursor_shape_manager_state = CursorShapeManagerState::new::<State>(&display_handle);
-        let cursor_manager =
-            CursorManager::new(&config_.cursor.xcursor_theme, config_.cursor.xcursor_size);
+        let (cursor_tx, cursor_rx) = calloop::channel::channel();
+        let cursor_manager = CursorManager::new(
+            &config_.cursor.xcursor_theme,
+            config_.cursor.xcursor_size,
+            cursor_tx,
+        );
+        event_loop
+            .insert_source(cursor_rx, |event, _, state: &mut State| {
+                if let calloop::channel::Event::Msg(response) = event {
+                    if state.niri.cursor_manager.apply_rasterized(response) {
+                        state.niri.cursor_texture_cache.clear();
+                        state.niri.queue_redraw_all();
+                    }
+                }
+            })
+            .unwrap();
+        cursor_manager.get_default_cursor(1);
 
         let mod_key = backend.mod_key(&config.borrow());
         let mods_with_mouse_binds = mods_with_mouse_binds(mod_key, &config_.binds);
@@ -2912,6 +2931,7 @@ impl Niri {
             mapped_layer_surfaces: HashMap::new(),
             root_surface: HashMap::new(),
             dmabuf_pre_commit_hook: HashMap::new(),
+            surface_committed: false,
             blocker_cleared_tx,
             blocker_cleared_rx,
             monitors_active: true,
@@ -4485,6 +4505,10 @@ impl Niri {
         };
 
         self.layout.refresh(layout_is_active);
+
+        if mem::take(&mut self.surface_committed) {
+            self.layout.with_windows_mut(|mapped, _| mapped.refresh());
+        }
     }
 
     pub fn refresh_idle_inhibit(&mut self) {
@@ -5588,7 +5612,7 @@ impl Niri {
         let frame_callback_time = get_monotonic_time();
 
         for mapped in self.layout.windows_for_output_mut(output) {
-            if mapped.is_window_cast_target() {
+            if mapped.is_window_cast_target() || mapped.no_throttle() {
                 ignore_primary_output.set(true);
             }
 
@@ -7552,6 +7576,43 @@ impl Niri {
     pub fn queue_redraw_mru_output(&mut self) {
         if let Some(output) = self.window_mru_ui.output().cloned() {
             self.queue_redraw(&output);
+        }
+    }
+
+    pub fn switch_workspace_down(&mut self, output_ref: OutputReference) {
+        if let Some(monitor) = self.monitor_mut(output_ref) {
+            monitor.switch_workspace_down()
+        }
+    }
+
+    pub fn switch_workspace_up(&mut self, output_ref: OutputReference) {
+        if let Some(monitor) = self.monitor_mut(output_ref) {
+            monitor.switch_workspace_up()
+        }
+    }
+
+    pub fn move_workspace_down(&mut self, output_ref: OutputReference) {
+        if let Some(monitor) = self.monitor_mut(output_ref) {
+            monitor.move_workspace_down()
+        }
+    }
+
+    pub fn move_workspace_up(&mut self, output_ref: OutputReference) {
+        if let Some(monitor) = self.monitor_mut(output_ref) {
+            monitor.move_workspace_up()
+        }
+    }
+
+    pub fn monitor_mut(&mut self, output_ref: OutputReference) -> Option<&mut Monitor<Mapped>> {
+        match output_ref {
+            OutputReference::Active => self.layout.active_monitor(),
+            OutputReference::UnderCursor => self
+                .output_under_cursor()
+                .and_then(|output| self.layout.monitor_for_output_mut(&output)),
+            OutputReference::OutputName(name) => self
+                .output_by_name_match(&name)
+                .cloned()
+                .and_then(|output| self.layout.monitor_for_output_mut(&output)),
         }
     }
 }

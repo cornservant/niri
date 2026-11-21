@@ -1998,6 +1998,7 @@ mod tests {
                     b: 0.0,
                     a: 1.0,
                 },
+                maximized_window_placement: ExpelFromColumn,
             },
             prefer_no_csd: true,
             cursor: Cursor {
@@ -2409,6 +2410,7 @@ mod tests {
                         ),
                     ),
                     tiled_state: None,
+                    no_throttle: None,
                     background_effect: BackgroundEffectRule {
                         xray: None,
                         blur: None,
@@ -2765,7 +2767,9 @@ mod tests {
                             ),
                         },
                         action: Press(
-                            FocusWorkspaceDown,
+                            FocusWorkspaceDown(
+                                Active,
+                            ),
                         ),
                         repeat: true,
                         pass_through: None,

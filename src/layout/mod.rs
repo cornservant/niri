@@ -587,6 +587,11 @@ impl SizingMode {
     pub fn is_maximized(&self) -> bool {
         matches!(self, Self::Maximized)
     }
+
+    #[must_use]
+    pub fn is_fullscreen_or_maximized(&self) -> bool {
+        matches!(self, Self::Fullscreen | Self::Maximized)
+    }
 }
 
 impl<W: LayoutElement> InteractiveMoveState<W> {
@@ -1772,7 +1777,7 @@ impl<W: LayoutElement> Layout<W> {
         }
     }
 
-    fn active_monitor(&mut self) -> Option<&mut Monitor<W>> {
+    pub fn active_monitor(&mut self) -> Option<&mut Monitor<W>> {
         let MonitorSet::Normal {
             monitors,
             active_monitor_idx,
@@ -1868,25 +1873,25 @@ impl<W: LayoutElement> Layout<W> {
         workspace.move_column_to_last(focus);
     }
 
-    pub fn move_column_left_or_to_output(&mut self, output: &Output) -> bool {
+    pub fn move_column_left_or_to_output(&mut self, output: &Output, focus: bool) -> bool {
         if let Some(workspace) = self.active_workspace_mut() {
             if workspace.move_left(true) {
                 return false;
             }
         }
 
-        self.move_column_to_output(output, None, true);
+        self.move_column_to_output(output, None, focus);
         true
     }
 
-    pub fn move_column_right_or_to_output(&mut self, output: &Output) -> bool {
+    pub fn move_column_right_or_to_output(&mut self, output: &Output, focus: bool) -> bool {
         if let Some(workspace) = self.active_workspace_mut() {
             if workspace.move_right(true) {
                 return false;
             }
         }
 
-        self.move_column_to_output(output, None, true);
+        self.move_column_to_output(output, None, focus);
         true
     }
 
@@ -1911,18 +1916,18 @@ impl<W: LayoutElement> Layout<W> {
         workspace.move_up(focus);
     }
 
-    pub fn move_down_or_to_workspace_down(&mut self) {
+    pub fn move_down_or_to_workspace_down(&mut self, focus: bool) {
         let Some(monitor) = self.active_monitor() else {
             return;
         };
-        monitor.move_down_or_to_workspace_down();
+        monitor.move_down_or_to_workspace_down(focus);
     }
 
-    pub fn move_up_or_to_workspace_up(&mut self) {
+    pub fn move_up_or_to_workspace_up(&mut self, focus: bool) {
         let Some(monitor) = self.active_monitor() else {
             return;
         };
-        monitor.move_up_or_to_workspace_up();
+        monitor.move_up_or_to_workspace_up(focus);
     }
 
     pub fn consume_or_expel_window_left(&mut self, window: Option<&W::Id>) {
@@ -4924,7 +4929,6 @@ impl<W: LayoutElement> Layout<W> {
             win.set_bounds(output_size(&move_.output).to_i32_round());
 
             win.send_pending_configure();
-            win.refresh();
 
             ongoing_scrolling_dnd.get_or_insert(!move_.is_floating);
         } else if let Some(InteractiveMoveState::Starting { window_id, .. }) =
