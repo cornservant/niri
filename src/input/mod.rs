@@ -1292,6 +1292,11 @@ impl State {
                     }
                 });
             }
+            Action::ActivateColumn(reference, index) => {
+                if let Some(workspace) = self.niri.layout.find_workspace_by_ref(reference) {
+                    workspace.focus_column(index);
+                }
+            },
             Action::MoveColumnLeft(focus) => {
                 if self.niri.screenshot_ui.is_open() {
                     self.niri.screenshot_ui.move_left();

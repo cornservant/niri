@@ -345,6 +345,8 @@ pub enum Action {
     FocusWindowBottom,
     FocusWindowDownOrTop,
     FocusWindowUpOrBottom,
+    #[knuffel(skip)]
+    ActivateColumn(#[knuffel(argument)] WorkspaceReference, #[knuffel(argument)] usize),
     MoveColumnLeft(#[knuffel(property(name = "focus"), default = true)] bool),
     MoveColumnRight(#[knuffel(property(name = "focus"), default = true)] bool),
     MoveColumnToFirst(#[knuffel(property(name = "focus"), default = true)] bool),
@@ -693,6 +695,7 @@ impl From<niri_ipc::Action> for Action {
             niri_ipc::Action::FocusWindowBottom {} => Self::FocusWindowBottom,
             niri_ipc::Action::FocusWindowDownOrTop {} => Self::FocusWindowDownOrTop,
             niri_ipc::Action::FocusWindowUpOrBottom {} => Self::FocusWindowUpOrBottom,
+            niri_ipc::Action::ActivateColumn { reference, index } => Self::ActivateColumn(reference.into(), index),
             niri_ipc::Action::MoveColumnLeft { focus } => Self::MoveColumnLeft(focus),
             niri_ipc::Action::MoveColumnRight { focus } => Self::MoveColumnRight(focus),
             niri_ipc::Action::MoveColumnToFirst { focus } => Self::MoveColumnToFirst(focus),

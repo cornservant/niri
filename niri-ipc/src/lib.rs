@@ -476,6 +476,18 @@ pub enum Action {
     FocusWindowDownOrTop {},
     /// Focus the window above or the bottommost window.
     FocusWindowUpOrBottom {},
+    /// Activate the column on a workspace without focus.
+    ActivateColumn {
+        /// Reference (index or name) of the workspace.
+        #[cfg_attr(feature = "clap", arg())]
+        reference: WorkspaceReferenceArg,
+
+        /// Index of the column to activate.
+        ///
+        /// The index starts from 1 for the first column.
+        #[cfg_attr(feature = "clap", arg())]
+        index: usize,
+    },
     /// Move the focused column to the left.
     MoveColumnLeft {
         /// Whether the focus should follow the moved column.
