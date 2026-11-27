@@ -1998,6 +1998,7 @@ mod tests {
                     b: 0.0,
                     a: 1.0,
                 },
+                maximized_window_placement: ExpelFromColumn,
             },
             prefer_no_csd: true,
             cursor: Cursor {
@@ -2621,7 +2622,9 @@ mod tests {
                             ),
                         },
                         action: Press(
-                            MoveWindowToMonitorRight,
+                            MoveWindowToMonitorRight(
+                                true,
+                            ),
                         ),
                         repeat: true,
                         pass_through: None,
@@ -2642,6 +2645,7 @@ mod tests {
                         action: Press(
                             MoveWindowToMonitor(
                                 "eDP-1",
+                                true,
                             ),
                         ),
                         repeat: true,
@@ -2663,6 +2667,7 @@ mod tests {
                         action: Press(
                             MoveColumnToMonitor(
                                 "DP-1",
+                                true,
                             ),
                         ),
                         repeat: true,
@@ -2766,7 +2771,9 @@ mod tests {
                             ),
                         },
                         action: Press(
-                            FocusWorkspaceDown,
+                            FocusWorkspaceDown(
+                                Active,
+                            ),
                         ),
                         repeat: true,
                         pass_through: None,
